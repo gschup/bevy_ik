@@ -1,0 +1,15 @@
+[package]
+name = "humanoid_ik"
+version = "0.1.0"
+authors = ["Georg Schuppe <georg.schuppe@gmail.com>"]
+edition = "2021"
+description = "Inverse kinematics framework implementing the FABRIK algorithm."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/gschup/humanoid_ik"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = "0.7"
+
