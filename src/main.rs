@@ -1,7 +1,9 @@
 pub mod joint;
 
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
-use joint::{Joint, JointBundle, LinkLength};
+use joint::{Joint, JointBundle, JointName, LinkLength};
 
 const LINK_THICKNESS: f32 = 0.1;
 
@@ -35,7 +37,7 @@ fn setup_render(
     });
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(5.0, 10.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(10.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 
@@ -71,13 +73,18 @@ fn setup_armature(mut commands: Commands) {
     // spawn a joint
     commands
         .spawn_bundle(JointBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            name: JointName("root".to_string()),
             link_length: LinkLength(link_length),
             ..default()
         })
         .with_children(|parent| {
             parent.spawn_bundle(JointBundle {
-                transform: Transform::from_xyz(0.0, link_length, 0.0),
+                name: JointName("arm".to_string()),
+                transform: Transform {
+                    translation: Vec3::new(0.0, link_length, 0.0),
+                    rotation: Quat::from_rotation_x(PI * 0.25),
+                    ..default()
+                },
                 link_length: LinkLength(link_length),
                 ..default()
             });
