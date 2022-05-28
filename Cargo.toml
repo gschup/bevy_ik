@@ -12,4 +12,5 @@ repository = "https://github.com/gschup/humanoid_ik"
 
 [dependencies]
 bevy = "0.7"
+bevy-inspector-egui = "0.11"
 
