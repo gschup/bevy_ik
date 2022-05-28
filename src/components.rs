@@ -1,14 +1,24 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 
-#[derive(Component, Default)]
-pub struct IkGoal;
+#[derive(Component)]
+pub struct IkGoal {
+    target_joint: Entity,
+}
 
-#[derive(Bundle, Default)]
+impl IkGoal {
+    pub fn new(target: Entity) -> Self {
+        Self {
+            target_joint: target,
+        }
+    }
+}
+
+#[derive(Bundle)]
 pub struct IkGoalBundle {
     pub transform: Transform,
     pub global_transform: GlobalTransform,
-    pub marker: IkGoal,
+    pub goal: IkGoal,
 }
 
 pub struct JointVizHandles {
@@ -26,7 +36,7 @@ pub struct GoalVizHandles {
 #[derive(Component, Default, Inspectable)]
 pub struct Joint {
     #[inspectable(read_only)]
-    name: String,
+    pub name: String,
 }
 
 impl Joint {

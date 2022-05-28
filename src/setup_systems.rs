@@ -1,11 +1,20 @@
-use crate::components::{GoalVizHandles, IkGoalBundle, Joint, JointBundle, JointVizHandles, Link};
+use crate::components::{GoalVizHandles, IkGoal, IkGoalBundle, Joint, JointVizHandles, Link};
 use bevy::prelude::*;
-use std::f32::consts::PI;
 
 const LINK_THICKNESS: f32 = 0.1;
 const GOAL_SIZE: f32 = 0.2;
 
-pub fn setup_camera(mut commands: Commands) {
+pub fn setup_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // Plane
+    commands.spawn_bundle(PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 100000.0 })),
+        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+        ..default()
+    });
     // light
     commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_xyz(4.0, 5.0, -4.0),
@@ -13,7 +22,7 @@ pub fn setup_camera(mut commands: Commands) {
     });
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(15.0, 0.0, 0.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(10.0, 5.0, 0.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
         ..default()
     });
 }
@@ -24,7 +33,7 @@ pub fn setup_joint_assets(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let link_material_handle = materials.add(StandardMaterial {
-        base_color: Color::BEIGE,
+        base_color: Color::MAROON,
         ..default()
     });
     let joint_material_handle = materials.add(StandardMaterial {
@@ -67,42 +76,36 @@ pub fn setup_goal_assets(
     })
 }
 
-/// load a simple armature, consisting of hierarchical joint bundles
-pub fn setup_armature(mut commands: Commands) {
-    // link lengths
-    let link_lengths = [3.0, 2.0, 1.0];
+pub fn spawn_goal(
+    mut commands: Commands,
+    joints: Query<(Entity, &Joint)>,
+    assets: Res<GoalVizHandles>,
+) {
+    let target_joint_name = "hand";
+    let target_id = joints
+        .iter()
+        .filter_map(|(id, joint)| {
+            if joint.name == target_joint_name {
+                Some(id)
+            } else {
+                None
+            }
+        })
+        .next()
+        .expect("No valid joint found");
 
-    // spawn three joints with links
     commands
-        .spawn_bundle(JointBundle {
-            joint: Joint::new("root"),
-            link: Link::new(link_lengths[0]),
-            ..default()
+        .spawn_bundle(IkGoalBundle {
+            transform: Transform::from_xyz(0.0, 3.0, -3.0),
+            global_transform: GlobalTransform::default(),
+            goal: IkGoal::new(target_id),
         })
         .with_children(|parent| {
-            parent
-                .spawn_bundle(JointBundle {
-                    joint: Joint::new("arm_0"),
-                    transform: Transform {
-                        translation: Vec3::new(0.0, link_lengths[0], 0.0),
-                        rotation: Quat::from_rotation_x(PI * 0.25),
-                        ..default()
-                    },
-                    link: Link::new(link_lengths[1]),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    parent.spawn_bundle(JointBundle {
-                        joint: Joint::new("arm_1"),
-                        transform: Transform {
-                            translation: Vec3::new(0.0, link_lengths[1], 0.0),
-                            rotation: Quat::from_rotation_x(PI * 0.25),
-                            ..default()
-                        },
-                        link: Link::new(link_lengths[2]),
-                        ..default()
-                    });
-                });
+            parent.spawn_bundle(PbrBundle {
+                mesh: assets.goal_mesh_handle.clone(),
+                material: assets.goal_material_handle.clone(),
+                ..default()
+            });
         });
 }
 
@@ -111,7 +114,7 @@ pub fn setup_joint_visuals(
     joints: Query<(Entity, &Link), With<Joint>>,
     viz_handles: Res<JointVizHandles>,
 ) {
-    for (joint_id, link_length) in joints.iter() {
+    for (joint_id, link) in joints.iter() {
         // joint
         let joint_viz_id = commands
             .spawn_bundle(PbrBundle {
@@ -121,37 +124,24 @@ pub fn setup_joint_visuals(
             })
             .id();
 
-        // link
-        let link_viz_id = commands
-            .spawn_bundle(PbrBundle {
-                mesh: viz_handles.link_mesh_handle.clone(),
-                material: viz_handles.link_material_handle.clone(),
-                transform: Transform {
-                    translation: Vec3::new(0.0, link_length.length * 0.5, 0.0),
-                    scale: Vec3::new(1.0, link_length.length, 1.0),
+        commands.entity(joint_id).push_children(&[joint_viz_id]);
+
+        // link only if there is one
+        if link.length > 0.0 {
+            let link_viz_id = commands
+                .spawn_bundle(PbrBundle {
+                    mesh: viz_handles.link_mesh_handle.clone(),
+                    material: viz_handles.link_material_handle.clone(),
+                    transform: Transform {
+                        translation: Vec3::new(0.0, link.length * 0.5, 0.0),
+                        scale: Vec3::new(1.0, link.length, 1.0),
+                        ..default()
+                    },
                     ..default()
-                },
-                ..default()
-            })
-            .id();
+                })
+                .id();
 
-        commands
-            .entity(joint_id)
-            .push_children(&[joint_viz_id, link_viz_id]);
+            commands.entity(joint_id).push_children(&[link_viz_id]);
+        }
     }
-}
-
-pub fn spawn_goal(mut commands: Commands, assets: Res<GoalVizHandles>) {
-    commands
-        .spawn_bundle(IkGoalBundle {
-            transform: Transform::from_xyz(0.0, 5.0, 5.0),
-            ..default()
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(PbrBundle {
-                mesh: assets.goal_mesh_handle.clone(),
-                material: assets.goal_material_handle.clone(),
-                ..default()
-            });
-        });
 }
