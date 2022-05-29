@@ -11,14 +11,20 @@ pub fn load_chain_armature(mut commands: Commands) {
     // spawn four joints with three links (last joint has link length 0)
     commands
         .spawn_bundle(JointBundle {
-            joint: Joint::new("root"),
+            joint: Joint {
+                name: "root".to_owned(),
+                fixed: true,
+            },
             link: Link::new(link_lengths[0]),
             ..default()
         })
         .with_children(|parent| {
             parent
                 .spawn_bundle(JointBundle {
-                    joint: Joint::new("arm_0"),
+                    joint: Joint {
+                        name: "arm_0".to_owned(),
+                        fixed: false,
+                    },
                     transform: Transform {
                         translation: Vec3::new(0.0, link_lengths[0], 0.0),
                         rotation: Quat::from_rotation_x(PI * 0.25),
@@ -30,7 +36,10 @@ pub fn load_chain_armature(mut commands: Commands) {
                 .with_children(|parent| {
                     parent
                         .spawn_bundle(JointBundle {
-                            joint: Joint::new("arm_1"),
+                            joint: Joint {
+                                name: "arm_1".to_owned(),
+                                fixed: false,
+                            },
                             transform: Transform {
                                 translation: Vec3::new(0.0, link_lengths[1], 0.0),
                                 rotation: Quat::from_rotation_x(PI * 0.25),
@@ -41,7 +50,10 @@ pub fn load_chain_armature(mut commands: Commands) {
                         })
                         .with_children(|parent| {
                             parent.spawn_bundle(JointBundle {
-                                joint: Joint::new("hand"),
+                                joint: Joint {
+                                    name: "hand".to_owned(),
+                                    fixed: false,
+                                },
                                 transform: Transform {
                                     translation: Vec3::new(0.0, link_lengths[2], 0.0),
                                     ..default()

@@ -31,14 +31,7 @@ pub struct IkGoal {
 pub struct Joint {
     #[inspectable(read_only)]
     pub name: String,
-}
-
-impl Joint {
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_owned(),
-        }
-    }
+    pub fixed: bool,
 }
 
 #[derive(Component, Default, Inspectable)]

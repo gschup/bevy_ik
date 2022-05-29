@@ -82,7 +82,7 @@ pub fn spawn_goal(
     assets: Res<GoalVizHandles>,
 ) {
     let target_joint_name = "hand";
-    let chain_length = 3;
+    let chain_length = 4;
 
     let target_id = joints
         .iter()

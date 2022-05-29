@@ -28,7 +28,22 @@ pub fn create_armature_graph(
 
 pub fn apply_ik_goal(
     mut joints: Query<(Entity, &Transform, &GlobalTransform), With<Joint>>,
-    goals: Query<((&Transform, &IkGoal), Without<Joint>)>,
+    goals: Query<(&GlobalTransform, &IkGoal), Without<Joint>>,
     armature_graph: ResMut<ArmatureGraph>,
 ) {
+    for (transform, goal) in goals.iter() {
+        let mut chain = Vec::new();
+        let mut cur_id = goal.target_joint;
+        for _ in 0..goal.chain_length {
+            chain.push(cur_id);
+            if let Some(par_id) = armature_graph.joint_parent.get(&cur_id) {
+                // TODO: for now, we assume no branching
+                cur_id = *par_id;
+            } else {
+                // joint without parent, this is the root
+                break;
+            }
+        }
+        println!("{:?}", chain);
+    }
 }
