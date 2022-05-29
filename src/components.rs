@@ -1,26 +1,7 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_inspector_egui::Inspectable;
 
-#[derive(Component)]
-pub struct IkGoal {
-    target_joint: Entity,
-}
-
-impl IkGoal {
-    pub fn new(target: Entity) -> Self {
-        Self {
-            target_joint: target,
-        }
-    }
-}
-
-#[derive(Bundle)]
-pub struct IkGoalBundle {
-    pub transform: Transform,
-    pub global_transform: GlobalTransform,
-    pub goal: IkGoal,
-}
-
+// Resources
 pub struct JointVizHandles {
     pub joint_mesh_handle: Handle<Mesh>,
     pub link_mesh_handle: Handle<Mesh>,
@@ -31,6 +12,19 @@ pub struct JointVizHandles {
 pub struct GoalVizHandles {
     pub goal_mesh_handle: Handle<Mesh>,
     pub goal_material_handle: Handle<StandardMaterial>,
+}
+
+#[derive(Default)]
+pub struct ArmatureGraph {
+    pub joint_children: HashMap<Entity, Vec<Entity>>,
+    pub joint_parent: HashMap<Entity, Entity>,
+}
+
+// Components
+#[derive(Component)]
+pub struct IkGoal {
+    pub target_joint: Entity,
+    pub chain_length: u32,
 }
 
 #[derive(Component, Default, Inspectable)]
@@ -59,10 +53,18 @@ impl Link {
     }
 }
 
+// Bundles
 #[derive(Bundle, Default)]
 pub struct JointBundle {
     pub joint: Joint,
     pub link: Link,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
+}
+
+#[derive(Bundle)]
+pub struct IkGoalBundle {
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub goal: IkGoal,
 }

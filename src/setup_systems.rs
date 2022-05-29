@@ -82,6 +82,8 @@ pub fn spawn_goal(
     assets: Res<GoalVizHandles>,
 ) {
     let target_joint_name = "hand";
+    let chain_length = 3;
+
     let target_id = joints
         .iter()
         .filter_map(|(id, joint)| {
@@ -98,7 +100,10 @@ pub fn spawn_goal(
         .spawn_bundle(IkGoalBundle {
             transform: Transform::from_xyz(0.0, 3.0, -3.0),
             global_transform: GlobalTransform::default(),
-            goal: IkGoal::new(target_id),
+            goal: IkGoal {
+                target_joint: target_id,
+                chain_length,
+            },
         })
         .with_children(|parent| {
             parent.spawn_bundle(PbrBundle {
