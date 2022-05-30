@@ -21,7 +21,7 @@ pub struct ArmatureGraph {
 }
 
 // Components
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub struct IkGoal {
     pub target_joint: Entity,
     pub chain_length: u32,
@@ -31,7 +31,7 @@ pub struct IkGoal {
 pub struct Joint {
     #[inspectable(read_only)]
     pub name: String,
-    pub fixed: bool,
+    pub fixed: bool, // assume parents of fixed joints are also fixed...
 }
 
 #[derive(Component, Default, Inspectable)]

@@ -98,7 +98,7 @@ pub fn spawn_goal(
 
     commands
         .spawn_bundle(IkGoalBundle {
-            transform: Transform::from_xyz(0.0, 3.0, -3.0),
+            transform: Transform::from_xyz(0.0, 6.0, 0.0),
             global_transform: GlobalTransform::default(),
             goal: IkGoal {
                 target_joint: target_id,
