@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::f32::consts::PI;
 
 use crate::components::{Joint, JointBundle};
 
@@ -26,7 +25,7 @@ pub fn load_chain_armature(mut commands: Commands) {
                     },
                     transform: Transform {
                         translation: Vec3::new(0.0, link_lengths[0], 0.0),
-                        rotation: Quat::from_rotation_x(PI * 0.25),
+                        //rotation: Quat::from_rotation_x(PI * 0.25),
                         ..default()
                     },
                     ..default()
@@ -40,7 +39,7 @@ pub fn load_chain_armature(mut commands: Commands) {
                             },
                             transform: Transform {
                                 translation: Vec3::new(0.0, link_lengths[1], 0.0),
-                                rotation: Quat::from_rotation_x(PI * 0.25),
+                                //rotation: Quat::from_rotation_x(PI * 0.25),
                                 ..default()
                             },
                             ..default()

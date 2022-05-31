@@ -2,7 +2,7 @@ use crate::components::{GoalVizHandles, IkGoal, IkGoalBundle, Joint, JointVizHan
 use bevy::prelude::*;
 
 const LINK_THICKNESS: f32 = 0.1;
-const GOAL_SIZE: f32 = 0.2;
+const GOAL_SIZE: f32 = 0.3;
 
 pub fn setup_camera(
     mut commands: Commands,
@@ -42,8 +42,8 @@ pub fn setup_joint_assets(
     });
     let link_mesh_handle = meshes.add(Mesh::from(shape::Box::new(
         LINK_THICKNESS,
-        1.0, // scaled by the joint itself
         LINK_THICKNESS,
+        1.0, // scaled by the joint itself
     )));
     let joint_mesh_handle = meshes.add(Mesh::from(shape::Cube { size: 0.2 }));
 
@@ -114,6 +114,21 @@ pub fn spawn_goal(
         });
 }
 
+pub fn rotate_goals(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Time>) {
+    let rad = 2.;
+    let ampl = 2.;
+    let height = 2.;
+    let ms = time.time_since_startup().as_millis() as f32;
+    let t = ms * 0.001;
+    let x = rad * t.cos();
+    let z = rad * t.sin();
+    let y = height + ampl * (3. * t).sin();
+
+    for mut goal_tf in goals.iter_mut() {
+        *goal_tf = Transform::from_xyz(x, y, z);
+    }
+}
+
 pub fn setup_joint_visuals(
     mut commands: Commands,
     joints: Query<(Entity, &Transform), With<Joint>>,
@@ -131,7 +146,7 @@ pub fn setup_joint_visuals(
 
         commands.entity(joint_id).push_children(&[joint_viz_id]);
 
-        /*/ link only if there is a displacement
+        // link only if there is a displacement
         let link_length = transform.translation.length();
         if link_length > 0.01 {
             let link_viz_id = commands
@@ -139,8 +154,8 @@ pub fn setup_joint_visuals(
                     mesh: viz_handles.link_mesh_handle.clone(),
                     material: viz_handles.link_material_handle.clone(),
                     transform: Transform {
-                        translation: Vec3::new(0.0, link_length * 0.5, 0.0),
-                        scale: Vec3::new(1.0, link_length, 1.0),
+                        translation: Vec3::new(0.0, 0.0, -link_length * 0.5),
+                        scale: Vec3::new(1.0, 1.0, link_length),
                         ..default()
                     },
                     ..default()
@@ -148,7 +163,6 @@ pub fn setup_joint_visuals(
                 .id();
 
             commands.entity(joint_id).push_children(&[link_viz_id]);
-
-        }*/
+        }
     }
 }

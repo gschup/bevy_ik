@@ -5,11 +5,12 @@ mod setup_systems;
 
 use armatures::load_chain_armature;
 use bevy::prelude::*;
-use bevy_inspector_egui::{widgets::InspectorQuerySingle, InspectorPlugin};
-use components::{ArmatureGraph, IkGoal};
+use bevy_inspector_egui::WorldInspectorPlugin;
+use components::ArmatureGraph;
 use fabrik::{apply_ik_goal, create_armature_tree};
 use setup_systems::{
-    setup_camera, setup_goal_assets, setup_joint_assets, setup_joint_visuals, spawn_goal,
+    rotate_goals, setup_camera, setup_goal_assets, setup_joint_assets, setup_joint_visuals,
+    spawn_goal,
 };
 
 fn main() {
@@ -22,7 +23,8 @@ fn main() {
         })
         .init_resource::<ArmatureGraph>()
         .add_plugins(DefaultPlugins)
-        .add_plugin(InspectorPlugin::<InspectorQuerySingle<Entity, With<IkGoal>>>::new())
+        //.add_plugin(InspectorPlugin::<InspectorQuerySingle<Entity, With<IkGoal>>>::new())
+        .add_plugin(WorldInspectorPlugin::new())
         // setup
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_joint_assets)
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_goal_assets)
@@ -30,6 +32,7 @@ fn main() {
         .add_startup_system_to_stage(StartupStage::Startup, setup_camera)
         .add_startup_system_to_stage(StartupStage::PostStartup, spawn_goal)
         .add_startup_system_to_stage(StartupStage::PostStartup, setup_joint_visuals)
+        .add_system(rotate_goals)
         .add_system(create_armature_tree)
         .add_system(apply_ik_goal.after(create_armature_tree))
         .run();
