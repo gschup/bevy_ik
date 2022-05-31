@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::f32::consts::PI;
 
-use crate::components::{Joint, JointBundle, Link};
+use crate::components::{Joint, JointBundle};
 
 /// load a simple armature, consisting of hierarchical joint bundles
 pub fn load_chain_armature(mut commands: Commands) {
@@ -15,7 +15,6 @@ pub fn load_chain_armature(mut commands: Commands) {
                 name: "root".to_owned(),
                 fixed: true,
             },
-            link: Link::new(link_lengths[0]),
             ..default()
         })
         .with_children(|parent| {
@@ -30,7 +29,6 @@ pub fn load_chain_armature(mut commands: Commands) {
                         rotation: Quat::from_rotation_x(PI * 0.25),
                         ..default()
                     },
-                    link: Link::new(link_lengths[1]),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -45,7 +43,6 @@ pub fn load_chain_armature(mut commands: Commands) {
                                 rotation: Quat::from_rotation_x(PI * 0.25),
                                 ..default()
                             },
-                            link: Link::new(link_lengths[2]),
                             ..default()
                         })
                         .with_children(|parent| {
@@ -58,7 +55,6 @@ pub fn load_chain_armature(mut commands: Commands) {
                                     translation: Vec3::new(0.0, link_lengths[2], 0.0),
                                     ..default()
                                 },
-                                link: Link::new(0.0),
                                 ..default()
                             });
                         });

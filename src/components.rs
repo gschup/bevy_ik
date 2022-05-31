@@ -34,23 +34,10 @@ pub struct Joint {
     pub fixed: bool, // assume parents of fixed joints are also fixed...
 }
 
-#[derive(Component, Default, Inspectable)]
-pub struct Link {
-    #[inspectable(read_only)]
-    pub length: f32,
-}
-
-impl Link {
-    pub fn new(length: f32) -> Self {
-        Self { length }
-    }
-}
-
 // Bundles
 #[derive(Bundle, Default)]
 pub struct JointBundle {
     pub joint: Joint,
-    pub link: Link,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
 }

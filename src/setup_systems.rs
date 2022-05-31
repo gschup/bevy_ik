@@ -1,4 +1,4 @@
-use crate::components::{GoalVizHandles, IkGoal, IkGoalBundle, Joint, JointVizHandles, Link};
+use crate::components::{GoalVizHandles, IkGoal, IkGoalBundle, Joint, JointVizHandles};
 use bevy::prelude::*;
 
 const LINK_THICKNESS: f32 = 0.1;
@@ -116,10 +116,10 @@ pub fn spawn_goal(
 
 pub fn setup_joint_visuals(
     mut commands: Commands,
-    joints: Query<(Entity, &Link), With<Joint>>,
+    joints: Query<(Entity, &Transform), With<Joint>>,
     viz_handles: Res<JointVizHandles>,
 ) {
-    for (joint_id, link) in joints.iter() {
+    for (joint_id, transform) in joints.iter() {
         // joint
         let joint_viz_id = commands
             .spawn_bundle(PbrBundle {
@@ -131,15 +131,16 @@ pub fn setup_joint_visuals(
 
         commands.entity(joint_id).push_children(&[joint_viz_id]);
 
-        // link only if there is one
-        if link.length > 0.0 {
+        /*/ link only if there is a displacement
+        let link_length = transform.translation.length();
+        if link_length > 0.01 {
             let link_viz_id = commands
                 .spawn_bundle(PbrBundle {
                     mesh: viz_handles.link_mesh_handle.clone(),
                     material: viz_handles.link_material_handle.clone(),
                     transform: Transform {
-                        translation: Vec3::new(0.0, link.length * 0.5, 0.0),
-                        scale: Vec3::new(1.0, link.length, 1.0),
+                        translation: Vec3::new(0.0, link_length * 0.5, 0.0),
+                        scale: Vec3::new(1.0, link_length, 1.0),
                         ..default()
                     },
                     ..default()
@@ -147,6 +148,7 @@ pub fn setup_joint_visuals(
                 .id();
 
             commands.entity(joint_id).push_children(&[link_viz_id]);
-        }
+
+        }*/
     }
 }
