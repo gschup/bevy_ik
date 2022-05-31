@@ -152,10 +152,12 @@ pub fn apply_ik_goal(
                 new_positions.insert(joint_id, new_pos_centroid);
             }
 
-            // push the parent to the todo_queue, if it's not already in there
-            if let Some(par_id) = armature_graph.joint_parent.get(&joint_id) {
-                if !todo_queue.contains(par_id) {
-                    todo_queue.push_back(*par_id);
+            // if we are not at the root, push the parent to the todo_queue, if it's not already in there
+            if !roots.contains(&joint_id) {
+                if let Some(par_id) = armature_graph.joint_parent.get(&joint_id) {
+                    if !todo_queue.contains(par_id) {
+                        todo_queue.push_back(*par_id);
+                    }
                 }
             }
         }

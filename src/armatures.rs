@@ -23,11 +23,8 @@ pub fn load_chain_armature(mut commands: Commands) {
                         name: "arm_0".to_owned(),
                         fixed: false,
                     },
-                    transform: Transform {
-                        translation: Vec3::new(0.0, link_lengths[0], 0.0),
-                        //rotation: Quat::from_rotation_x(PI * 0.25),
-                        ..default()
-                    },
+                    transform: Transform::from_xyz(0.0, link_lengths[0], 0.0)
+                        .looking_at(Vec3::ZERO, Vec3::X),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -37,11 +34,8 @@ pub fn load_chain_armature(mut commands: Commands) {
                                 name: "arm_1".to_owned(),
                                 fixed: false,
                             },
-                            transform: Transform {
-                                translation: Vec3::new(0.0, link_lengths[1], 0.0),
-                                //rotation: Quat::from_rotation_x(PI * 0.25),
-                                ..default()
-                            },
+                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1])
+                                .looking_at(Vec3::ZERO, Vec3::Y),
                             ..default()
                         })
                         .with_children(|parent| {
@@ -50,10 +44,8 @@ pub fn load_chain_armature(mut commands: Commands) {
                                     name: "hand".to_owned(),
                                     fixed: false,
                                 },
-                                transform: Transform {
-                                    translation: Vec3::new(0.0, link_lengths[2], 0.0),
-                                    ..default()
-                                },
+                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)
+                                    .looking_at(Vec3::ZERO, Vec3::X),
                                 ..default()
                             });
                         });
