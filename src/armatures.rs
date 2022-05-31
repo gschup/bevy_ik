@@ -20,7 +20,7 @@ pub fn load_chain_armature(mut commands: Commands) {
             parent
                 .spawn_bundle(JointBundle {
                     joint: Joint {
-                        name: "arm_0".to_owned(),
+                        name: "fork".to_owned(),
                         fixed: false,
                     },
                     transform: Transform::from_xyz(0.0, link_lengths[0], 0.0)
@@ -41,7 +41,28 @@ pub fn load_chain_armature(mut commands: Commands) {
                         .with_children(|parent| {
                             parent.spawn_bundle(JointBundle {
                                 joint: Joint {
-                                    name: "hand".to_owned(),
+                                    name: "hand_1".to_owned(),
+                                    fixed: false,
+                                },
+                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)
+                                    .looking_at(Vec3::ZERO, Vec3::X),
+                                ..default()
+                            });
+                        });
+                    parent
+                        .spawn_bundle(JointBundle {
+                            joint: Joint {
+                                name: "arm_2".to_owned(),
+                                fixed: false,
+                            },
+                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1])
+                                .looking_at(Vec3::ZERO, Vec3::Y),
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn_bundle(JointBundle {
+                                joint: Joint {
+                                    name: "hand_2".to_owned(),
                                     fixed: false,
                                 },
                                 transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)

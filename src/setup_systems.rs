@@ -81,8 +81,8 @@ pub fn spawn_goal(
     joints: Query<(Entity, &Joint)>,
     assets: Res<GoalVizHandles>,
 ) {
-    let target_joint_name = "hand";
-    let chain_length = 2;
+    let target_joint_name = "hand_1";
+    let chain_length = 3;
 
     let target_id = joints
         .iter()
@@ -101,6 +101,40 @@ pub fn spawn_goal(
             transform: Transform::from_xyz(0.0, 6.0, 0.0),
             global_transform: GlobalTransform::default(),
             goal: IkGoal {
+                goal_id: 0,
+                target_joint: target_id,
+                chain_length,
+            },
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(PbrBundle {
+                mesh: assets.goal_mesh_handle.clone(),
+                material: assets.goal_material_handle.clone(),
+                ..default()
+            });
+        });
+
+    let target_joint_name = "hand_2";
+    let chain_length = 3;
+
+    let target_id = joints
+        .iter()
+        .filter_map(|(id, joint)| {
+            if joint.name == target_joint_name {
+                Some(id)
+            } else {
+                None
+            }
+        })
+        .next()
+        .expect("No valid joint found");
+
+    commands
+        .spawn_bundle(IkGoalBundle {
+            transform: Transform::from_xyz(0.0, 6.0, 0.0),
+            global_transform: GlobalTransform::default(),
+            goal: IkGoal {
+                goal_id: 1,
                 target_joint: target_id,
                 chain_length,
             },
@@ -114,17 +148,18 @@ pub fn spawn_goal(
         });
 }
 
-pub fn rotate_goals(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Time>) {
-    let rad = 2.;
-    let ampl = 2.;
-    let height = 2.;
-    let ms = time.time_since_startup().as_millis() as f32;
-    let t = ms * 0.001;
-    let x = rad * t.cos();
-    let z = rad * t.sin();
-    let y = height + ampl * (3. * t).sin();
-
-    for mut goal_tf in goals.iter_mut() {
+pub fn rotate_goals(mut goals: Query<(&mut Transform, &IkGoal)>, time: Res<Time>) {
+    for (mut goal_tf, goal) in goals.iter_mut() {
+        let rad = 2.;
+        let ampl = 2.;
+        let height = 2.;
+        let dir = ((goal.goal_id % 2) as f32 * 2.) - 1.; // either 1 or -1
+        let speed = 0.001 * (goal.goal_id + 1) as f32;
+        let ms = time.time_since_startup().as_millis() as f32;
+        let t = ms * speed * dir;
+        let x = rad * t.cos();
+        let z = rad * t.sin();
+        let y = height + ampl * (3. * t).sin();
         *goal_tf = Transform::from_xyz(x, y, z);
     }
 }

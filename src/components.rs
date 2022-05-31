@@ -23,6 +23,7 @@ pub struct ArmatureGraph {
 // Components
 #[derive(Component, Copy, Clone)]
 pub struct IkGoal {
+    pub goal_id: u32,
     pub target_joint: Entity,
     pub chain_length: u32,
 }
