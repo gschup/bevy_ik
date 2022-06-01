@@ -1,5 +1,4 @@
 use bevy::{prelude::*, utils::HashMap};
-use bevy_inspector_egui::Inspectable;
 
 // Resources
 pub struct JointVizHandles {
@@ -20,6 +19,18 @@ pub struct ArmatureGraph {
     pub joint_parent: HashMap<Entity, Entity>,
 }
 
+#[derive(Default)]
+pub struct IkSolverData {
+    // computed new positions for joints
+    pub positions: HashMap<Entity, Vec3>,
+    // for each joint, which children do we need info from? (some leaves might not have IK goals)
+    pub required_positions: HashMap<Entity, Vec<Entity>>,
+    // hashmap of joint_ids to goal_ids
+    pub goals_by_joints: HashMap<Entity, Entity>,
+    // FABRIK roots - joints defined by not having a parent, or by chain length, or if fixed
+    pub roots: Vec<Entity>,
+}
+
 // Components
 #[derive(Component, Copy, Clone)]
 pub struct IkGoal {
@@ -28,9 +39,8 @@ pub struct IkGoal {
     pub chain_length: u32,
 }
 
-#[derive(Component, Default, Inspectable)]
+#[derive(Component, Default)]
 pub struct Joint {
-    #[inspectable(read_only)]
     pub name: String,
     pub fixed: bool, // assume parents of fixed joints are also fixed...
 }

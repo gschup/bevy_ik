@@ -1,4 +1,4 @@
-use crate::components::{ArmatureGraph, IkGoal, Joint};
+use crate::components::{ArmatureGraph, IkGoal, IkSolverData, Joint};
 use bevy::{prelude::*, utils::HashMap};
 use std::collections::VecDeque;
 
@@ -29,55 +29,62 @@ pub fn create_armature_tree(
     }
 }
 
-pub fn apply_ik_goal(
-    mut joints: Query<(Entity, &Joint, &mut Transform, &GlobalTransform), With<Joint>>,
+pub fn cache_joint_data(
+    joints: Query<(Entity, &Joint, &Transform, &GlobalTransform), With<Joint>>,
     goals: Query<(Entity, &GlobalTransform, &IkGoal), Without<Joint>>,
-    armature_graph: ResMut<ArmatureGraph>,
+    armature_graph: Res<ArmatureGraph>,
+    mut data: ResMut<IkSolverData>,
 ) {
-    // queue we are going to use for multiple purposes
-    let mut todo_queue = VecDeque::<Entity>::new();
-    // for each joint, which children do we need info from? (some leaves might not have IK goals)
-    let mut required_positions = HashMap::<Entity, Vec<Entity>>::new();
-    // hashmap of joint_ids to goal_ids
-    let mut goals_by_joints = HashMap::<Entity, Entity>::new();
-    // FABRIK roots - joints defined by not having a parent, or by chain length, or if fixed
-    let mut roots = Vec::new();
+    // reset data
+    data.required_positions.clear();
+    data.goals_by_joints.clear();
+    data.roots.clear();
+    data.positions.clear();
 
-    // fill data structures defined above
+    // fill data structures with updated information
     for (goal_id, _, goal) in goals.iter() {
-        goals_by_joints.insert(goal.target_joint, goal_id);
+        data.goals_by_joints.insert(goal.target_joint, goal_id);
         let mut cur_id = goal.target_joint;
         for i in 0..goal.chain_length {
             if let Some(par_id) = armature_graph.joint_parent.get(&cur_id) {
                 // add the child joint as a required joint
-                required_positions
+                data.required_positions
                     .entry(*par_id)
                     .or_insert(Vec::new())
                     .push(cur_id);
                 cur_id = *par_id;
                 // we stop at joints with fixed positions
                 if joints.get(*par_id).unwrap().1.fixed {
-                    roots.push(*par_id);
+                    data.roots.push(*par_id);
                     break;
                 }
             } else {
                 // joint without parent, this is the root
-                roots.push(cur_id);
+                data.roots.push(cur_id);
                 break;
             }
 
             //if we stop going up the tree due to chain length limitation, this node now also counts as a pseudo-root
             if i == goal.chain_length - 1 {
-                roots.push(cur_id);
+                data.roots.push(cur_id);
             }
         }
     }
 
     // initialize positions
-    let mut positions = HashMap::<Entity, Vec3>::new();
     for (id, _, _, gt) in joints.iter() {
-        positions.insert(id, gt.translation.clone());
+        data.positions.insert(id, gt.translation.clone());
     }
+}
+
+pub fn compute_joint_positions(
+    joints: Query<(Entity, &Joint, &Transform, &GlobalTransform), With<Joint>>,
+    goals: Query<(Entity, &GlobalTransform, &IkGoal), Without<Joint>>,
+    armature_graph: Res<ArmatureGraph>,
+    mut data: ResMut<IkSolverData>,
+) {
+    // queue to walk through the armature graph
+    let mut todo_queue = VecDeque::<Entity>::new();
 
     for _ in 0..MAX_FABRIK_ITERS {
         // check if target joints are close enough to the goals
@@ -117,7 +124,7 @@ pub fn apply_ik_goal(
         while let Some(joint_id) = todo_queue.pop_front() {
             // check if all required joint children have a new position computed, otherwise push this joint back into the queue
             let mut ready = true;
-            if let Some(reqs) = required_positions.get(&joint_id) {
+            if let Some(reqs) = data.required_positions.get(&joint_id) {
                 for req_id in reqs {
                     if !new_positions.contains_key(req_id) {
                         ready = false;
@@ -131,15 +138,15 @@ pub fn apply_ik_goal(
             }
 
             // figure out the new forward position for this joint
-            if let Some(goal_id) = goals_by_joints.get(&joint_id) {
+            if let Some(goal_id) = data.goals_by_joints.get(&joint_id) {
                 // in the forward pass, the target joint of the goal is simply set to the goal position
                 let goal_transform = goals.get(*goal_id).unwrap().1;
                 new_positions.insert(joint_id, goal_transform.translation.clone());
             } else {
                 // otherwise compute a new position for each child
                 // the new position is the centroid of those positions
-                let old_pos = positions.get(&joint_id).unwrap();
-                let children = required_positions.get(&joint_id).unwrap();
+                let old_pos = data.positions.get(&joint_id).unwrap();
+                let children = data.required_positions.get(&joint_id).unwrap();
                 let mut new_pos_centroid = Vec3::ZERO;
                 for child_id in children {
                     let child_link_length = joints.get(*child_id).unwrap().2.translation.length();
@@ -153,7 +160,7 @@ pub fn apply_ik_goal(
             }
 
             // if we are not at the root, push the parent to the todo_queue, if it's not already in there
-            if !roots.contains(&joint_id) {
+            if !data.roots.contains(&joint_id) {
                 if let Some(par_id) = armature_graph.joint_parent.get(&joint_id) {
                     if !todo_queue.contains(par_id) {
                         todo_queue.push_back(*par_id);
@@ -168,7 +175,7 @@ pub fn apply_ik_goal(
 
         // prepare todo queue for backward pass
         todo_queue.clear(); // should be empty anyway, but just to make sure
-        for root in roots.iter() {
+        for root in data.roots.iter() {
             todo_queue.push_back(*root);
         }
 
@@ -178,8 +185,8 @@ pub fn apply_ik_goal(
             let (_, _, transf, _) = joints.get(joint_id).unwrap();
             let link_length = transf.translation.length();
             // if this joint is one of the roots or pseudo-roots, we just set them back to their original position
-            if roots.contains(&joint_id) {
-                let old_pos = positions.get(&joint_id).unwrap();
+            if data.roots.contains(&joint_id) {
+                let old_pos = data.positions.get(&joint_id).unwrap();
                 new_positions.insert(joint_id, *old_pos);
             } else {
                 let par_id = armature_graph.joint_parent.get(&joint_id).unwrap();
@@ -191,7 +198,7 @@ pub fn apply_ik_goal(
             }
 
             // put all required children in the todo queue - those who lead to a leaf joint with IK goal
-            if let Some(children) = required_positions.get(&joint_id) {
+            if let Some(children) = data.required_positions.get(&joint_id) {
                 for child_id in children {
                     todo_queue.push_back(*child_id);
                 }
@@ -199,19 +206,28 @@ pub fn apply_ik_goal(
         }
 
         // "flip the buffer"
-        positions = new_positions;
+        data.positions = new_positions;
     }
+}
+
+pub fn apply_joint_positions(
+    mut joint_transforms: Query<(&mut Transform, &GlobalTransform), With<Joint>>,
+    armature_graph: Res<ArmatureGraph>,
+    data: Res<IkSolverData>,
+) {
+    // queue to walk through the armature graph
+    let mut todo_queue = VecDeque::<Entity>::new();
 
     // apply position changes - start from root children (roots should not move)
     // joints and their global transforms
     let mut global_transforms = HashMap::<Entity, Mat4>::new();
-    todo_queue.clear(); // should be empty anyway, but just to make sure
-    for root in roots.iter() {
+
+    for root in data.roots.iter() {
         // register root global transform - unchanged from before
-        let global_mat = joints.get(*root).unwrap().3.compute_matrix();
+        let global_mat = joint_transforms.get(*root).unwrap().1.compute_matrix();
         global_transforms.insert(*root, global_mat);
         // enqueue children
-        if let Some(children) = required_positions.get(&root) {
+        if let Some(children) = data.required_positions.get(&root) {
             for child_id in children {
                 todo_queue.push_back(*child_id);
             }
@@ -222,8 +238,8 @@ pub fn apply_ik_goal(
     while let Some(joint_id) = todo_queue.pop_front() {
         let par_id = armature_graph.joint_parent.get(&joint_id).unwrap();
         let par_mat = global_transforms.get(par_id).unwrap();
-        let pos = positions.get(&joint_id).unwrap();
-        let par_pos = positions.get(par_id).unwrap();
+        let pos = data.positions.get(&joint_id).unwrap();
+        let par_pos = data.positions.get(par_id).unwrap();
 
         // compute global and local mat
         let global_mat = Transform::from_translation(*pos)
@@ -235,10 +251,10 @@ pub fn apply_ik_goal(
         global_transforms.insert(joint_id, global_mat);
 
         // update local tf
-        *joints.get_mut(joint_id).unwrap().2 = Transform::from_matrix(local_mat);
+        *joint_transforms.get_mut(joint_id).unwrap().0 = Transform::from_matrix(local_mat);
 
         // enqueue relevant children
-        if let Some(children) = required_positions.get(&joint_id) {
+        if let Some(children) = data.required_positions.get(&joint_id) {
             for child_id in children {
                 todo_queue.push_back(*child_id);
             }
