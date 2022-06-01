@@ -25,7 +25,6 @@ fn main() {
         .init_resource::<ArmatureGraph>()
         .init_resource::<IkSolverData>()
         .add_plugins(DefaultPlugins)
-        //.add_plugin(InspectorPlugin::<InspectorQuerySingle<Entity, With<IkGoal>>>::new())
         // setup
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_joint_assets)
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_goal_assets)
