@@ -1,40 +1,34 @@
 use bevy::{prelude::*, utils::HashMap};
 
 // Resources
-pub struct JointVizHandles {
-    pub joint_mesh_handle: Handle<Mesh>,
-    pub link_mesh_handle: Handle<Mesh>,
-    pub joint_material_handle: Handle<StandardMaterial>,
-    pub link_material_handle: Handle<StandardMaterial>,
-}
 
-pub struct GoalVizHandles {
-    pub goal_mesh_handle: Handle<Mesh>,
-    pub goal_material_handle: Handle<StandardMaterial>,
-}
-
+/// The [`ArmatureGraph`] contains information about the [`Joint`] tree. Treat this resource as read-only.
 #[derive(Default)]
 pub struct ArmatureGraph {
     pub joint_children: HashMap<Entity, Vec<Entity>>,
     pub joint_parent: HashMap<Entity, Entity>,
 }
 
+/// [`IkData`] contains intermediate results of the FABRIK algorithm. Treat this resource as read-only.
 #[derive(Default)]
-pub struct IkSolverData {
-    // computed new positions for joints
+pub struct IkData {
+    /// computed new positions for joints
     pub positions: HashMap<Entity, Vec3>,
-    // for each joint, which children do we need info from? (some leaves might not have IK goals)
+    /// for each joint, which children do we need info from? (some leaves might not have IK goals)
     pub required_positions: HashMap<Entity, Vec<Entity>>,
-    // hashmap of joint_ids to goal_ids
+    /// hashmap of joint_ids to goal_ids
     pub goals_by_joints: HashMap<Entity, Entity>,
-    // FABRIK roots - joints defined by not having a parent, or by chain length, or if fixed
+    /// FABRIK roots - joints defined by not having a parent, or by chain length, or if fixed
     pub roots: Vec<Entity>,
 }
 
-// Components
+pub struct IkSettings {
+    pub goal_tolerance: f32,
+    pub max_iterations: u32,
+}
+
 #[derive(Component, Copy, Clone)]
 pub struct IkGoal {
-    pub goal_id: u32,
     pub target_joint: Entity,
     pub chain_length: u32,
 }

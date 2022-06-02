@@ -1,9 +1,9 @@
 [package]
-name = "humanoid_ik"
+name = "bevy_ik"
 version = "0.1.0"
 authors = ["Georg Schuppe <georg.schuppe@gmail.com>"]
 edition = "2021"
-description = "Inverse kinematics framework implementing the FABRIK algorithm."
+description = "Inverse kinematics plugin for bevy implementing the FABRIK algorithm."
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/gschup/humanoid_ik"
@@ -11,5 +11,16 @@ repository = "https://github.com/gschup/humanoid_ik"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.7"
+bevy = { version = "0.7", default-features = false }
 
+[dev-dependencies]
+bevy = "0.7"
+bevy-inspector-egui = "0.11.0"
+
+[[example]]
+name = "fork"
+path = "examples/fork/main.rs"
+
+[[example]]
+name = "mannequin"
+path = "examples/mannequin/main.rs"
