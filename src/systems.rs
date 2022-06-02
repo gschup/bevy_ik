@@ -50,11 +50,6 @@ pub fn cache_joint_data(
                     .or_insert(Vec::new())
                     .push(cur_id);
                 cur_id = *par_id;
-                // we stop at joints with fixed positions
-                if joints.get(*par_id).unwrap().1.fixed {
-                    data.roots.push(*par_id);
-                    break;
-                }
             } else {
                 // joint without parent, this is the root
                 data.roots.push(cur_id);

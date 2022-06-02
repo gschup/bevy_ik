@@ -87,7 +87,6 @@ pub fn setup_fork_armature(mut commands: Commands) {
         .spawn_bundle(JointBundle {
             joint: Joint {
                 name: "root".to_owned(),
-                fixed: true,
             },
             ..default()
         })
@@ -96,7 +95,6 @@ pub fn setup_fork_armature(mut commands: Commands) {
                 .spawn_bundle(JointBundle {
                     joint: Joint {
                         name: "fork".to_owned(),
-                        fixed: false,
                     },
                     transform: Transform::from_xyz(0.0, link_lengths[0], 0.0)
                         .looking_at(Vec3::ZERO, Vec3::X),
@@ -107,7 +105,6 @@ pub fn setup_fork_armature(mut commands: Commands) {
                         .spawn_bundle(JointBundle {
                             joint: Joint {
                                 name: "arm_1".to_owned(),
-                                fixed: false,
                             },
                             transform: Transform::from_xyz(0.0, 0.0, link_lengths[1])
                                 .looking_at(Vec3::ZERO, Vec3::Y),
@@ -117,7 +114,6 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             parent.spawn_bundle(JointBundle {
                                 joint: Joint {
                                     name: "hand_1".to_owned(),
-                                    fixed: false,
                                 },
                                 transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)
                                     .looking_at(Vec3::ZERO, Vec3::X),
@@ -128,7 +124,6 @@ pub fn setup_fork_armature(mut commands: Commands) {
                         .spawn_bundle(JointBundle {
                             joint: Joint {
                                 name: "arm_2".to_owned(),
-                                fixed: false,
                             },
                             transform: Transform::from_xyz(0.0, 0.0, link_lengths[1])
                                 .looking_at(Vec3::ZERO, Vec3::Y),
@@ -138,7 +133,6 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             parent.spawn_bundle(JointBundle {
                                 joint: Joint {
                                     name: "hand_2".to_owned(),
-                                    fixed: false,
                                 },
                                 transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)
                                     .looking_at(Vec3::ZERO, Vec3::X),

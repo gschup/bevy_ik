@@ -36,7 +36,6 @@ pub struct IkGoal {
 #[derive(Component, Default)]
 pub struct Joint {
     pub name: String,
-    pub fixed: bool, // assume parents of fixed joints are also fixed...
 }
 
 // Bundles

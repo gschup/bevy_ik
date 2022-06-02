@@ -49,7 +49,6 @@ pub fn tag_mannequin(
                     if name.contains("bone") {
                         commands.entity(entity).insert(Joint {
                             name: name.to_string(),
-                            fixed: false,
                         });
                     }
                 }
