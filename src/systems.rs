@@ -65,7 +65,7 @@ pub fn cache_joint_data(
 
     // initialize positions
     for (id, _, _, gt) in joints.iter() {
-        data.positions.insert(id, gt.translation.clone());
+        data.positions.insert(id, gt.translation);
     }
 }
 
@@ -124,7 +124,7 @@ pub fn compute_joint_positions(
             if let Some(goal_id) = data.goals_by_joints.get(&joint_id) {
                 // in the forward pass, the target joint of the goal is simply set to the goal position
                 let goal_transform = goals.get(*goal_id).unwrap().1;
-                new_positions.insert(joint_id, goal_transform.translation.clone());
+                new_positions.insert(joint_id, goal_transform.translation);
             } else {
                 // otherwise compute a new position for each child
                 // the new position is the centroid of those positions
@@ -210,7 +210,7 @@ pub fn apply_joint_positions(
         let global_mat = joint_transforms.get(*root).unwrap().1.compute_matrix();
         global_transforms.insert(*root, global_mat);
         // enqueue children
-        if let Some(children) = data.required_positions.get(&root) {
+        if let Some(children) = data.required_positions.get(root) {
             for child_id in children {
                 todo_queue.push_back(*child_id);
             }
