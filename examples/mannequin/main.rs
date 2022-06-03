@@ -29,10 +29,11 @@ fn main() {
         .add_system_set(
             SystemSet::on_enter(AppState::Loading)
                 .with_system(setup_mannequin)
-                .with_system(setup_camera),
+                .with_system(setup_camera)
+                .with_system(setup_goal_assets),
         )
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(tag_mannequin))
         .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_goal))
-        .add_system_set(SystemSet::on_update(AppState::Running).with_system(rotate_goals))
+        .add_system_set(SystemSet::on_update(AppState::Running).with_system(rotate_goal))
         .run();
 }

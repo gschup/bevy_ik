@@ -1,7 +1,32 @@
 use bevy::prelude::*;
 use bevy_ik::{IkGoal, IkGoalBundle, Joint};
 
-use crate::{components::MannequinInstance, AppState};
+use crate::{
+    components::{GoalVizHandles, MannequinInstance},
+    AppState,
+};
+
+const GOAL_SIZE: f32 = 0.1;
+pub fn setup_goal_assets(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let goal_material_handle = materials.add(StandardMaterial {
+        base_color: Color::YELLOW,
+        unlit: true,
+        ..default()
+    });
+    let goal_mesh_handle = meshes.add(Mesh::from(shape::Icosphere {
+        radius: GOAL_SIZE * 0.5,
+        subdivisions: 4,
+    }));
+
+    commands.insert_resource(GoalVizHandles {
+        goal_mesh_handle,
+        goal_material_handle,
+    })
+}
 
 pub fn setup_camera(
     mut commands: Commands,
@@ -58,7 +83,11 @@ pub fn tag_mannequin(
     }
 }
 
-pub fn setup_goal(mut commands: Commands, joints: Query<(Entity, &Joint)>) {
+pub fn setup_goal(
+    mut commands: Commands,
+    joints: Query<(Entity, &Joint)>,
+    assets: Res<GoalVizHandles>,
+) {
     let target_joint_name = "bone_hand.L";
     let chain_length = 3;
 
@@ -74,21 +103,29 @@ pub fn setup_goal(mut commands: Commands, joints: Query<(Entity, &Joint)>) {
         .next()
         .expect("No valid joint found");
 
-    commands.spawn_bundle(IkGoalBundle {
-        transform: Transform::from_xyz(0.0, 6.0, 0.0),
-        global_transform: GlobalTransform::default(),
-        goal: IkGoal {
-            target_joint: target_id,
-            chain_length,
-        },
-    });
+    commands
+        .spawn_bundle(IkGoalBundle {
+            transform: Transform::from_xyz(0.0, 6.0, 0.0),
+            global_transform: GlobalTransform::default(),
+            goal: IkGoal {
+                target_joint: target_id,
+                chain_length,
+            },
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(PbrBundle {
+                mesh: assets.goal_mesh_handle.clone(),
+                material: assets.goal_material_handle.clone(),
+                ..default()
+            });
+        });
 }
 
-pub fn rotate_goals(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Time>) {
+pub fn rotate_goal(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Time>) {
     for (i, mut goal_tf) in goals.iter_mut().enumerate() {
-        let rad = 2.;
-        let ampl = 2.;
-        let height = 2.;
+        let rad = 0.25;
+        let ampl = 0.2;
+        let height = 1.2;
         let dir = ((i % 2) as f32 * 2.) - 1.; // either 1 or -1
         let speed = 0.001 * (i + 1) as f32;
         let ms = time.time_since_startup().as_millis() as f32;
