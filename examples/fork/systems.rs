@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy_ik::{IkGoal, IkGoalBundle, Joint, JointBundle};
+use bevy_ik::{Bone, BoneBundle, IkGoal, IkGoalBundle};
 
-use crate::components::{GoalVizHandles, JointVizHandles};
+use crate::components::{BoneVizHandles, GoalVizHandles};
 
 const LINK_THICKNESS: f32 = 0.1;
 const GOAL_SIZE: f32 = 0.3;
@@ -29,7 +29,7 @@ pub fn setup_camera(
     });
 }
 
-pub fn setup_joint_assets(
+pub fn setup_bone_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -45,11 +45,11 @@ pub fn setup_joint_assets(
     let link_mesh_handle = meshes.add(Mesh::from(shape::Box::new(
         LINK_THICKNESS,
         LINK_THICKNESS,
-        1.0, // scaled by the joint itself
+        1.0, // scaled by the bone itself
     )));
     let joint_mesh_handle = meshes.add(Mesh::from(shape::Cube { size: 0.2 }));
 
-    commands.insert_resource(JointVizHandles {
+    commands.insert_resource(BoneVizHandles {
         joint_mesh_handle,
         link_mesh_handle,
         joint_material_handle,
@@ -82,60 +82,55 @@ pub fn setup_fork_armature(mut commands: Commands) {
     // link lengths
     let link_lengths = [3.0, 2.0, 1.0];
 
-    // spawn four joints with three links (last joint has link length 0)
     commands
-        .spawn_bundle(JointBundle {
-            joint: Joint {
+        .spawn_bundle(BoneBundle {
+            bone: Bone {
                 name: "root".to_owned(),
             },
             ..default()
         })
         .with_children(|parent| {
             parent
-                .spawn_bundle(JointBundle {
-                    joint: Joint {
+                .spawn_bundle(BoneBundle {
+                    bone: Bone {
                         name: "fork".to_owned(),
                     },
-                    transform: Transform::from_xyz(0.0, link_lengths[0], 0.0)
-                        .looking_at(Vec3::ZERO, Vec3::X),
+                    transform: Transform::from_xyz(0.0, link_lengths[0], 0.0),
                     ..default()
                 })
                 .with_children(|parent| {
                     parent
-                        .spawn_bundle(JointBundle {
-                            joint: Joint {
+                        .spawn_bundle(BoneBundle {
+                            bone: Bone {
                                 name: "arm_1".to_owned(),
                             },
-                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1])
-                                .looking_at(Vec3::ZERO, Vec3::Y),
+                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1]),
+
                             ..default()
                         })
                         .with_children(|parent| {
-                            parent.spawn_bundle(JointBundle {
-                                joint: Joint {
+                            parent.spawn_bundle(BoneBundle {
+                                bone: Bone {
                                     name: "hand_1".to_owned(),
                                 },
-                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)
-                                    .looking_at(Vec3::ZERO, Vec3::X),
+                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0),
                                 ..default()
                             });
                         });
                     parent
-                        .spawn_bundle(JointBundle {
-                            joint: Joint {
+                        .spawn_bundle(BoneBundle {
+                            bone: Bone {
                                 name: "arm_2".to_owned(),
                             },
-                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1])
-                                .looking_at(Vec3::ZERO, Vec3::Y),
+                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1]),
                             ..default()
                         })
                         .with_children(|parent| {
-                            parent.spawn_bundle(JointBundle {
-                                joint: Joint {
+                            parent.spawn_bundle(BoneBundle {
+                                bone: Bone {
                                     name: "hand_2".to_owned(),
                                 },
-                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0)
-                                    .looking_at(Vec3::ZERO, Vec3::X),
+                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0),
                                 ..default()
                             });
                         });
@@ -143,82 +138,51 @@ pub fn setup_fork_armature(mut commands: Commands) {
         });
 }
 
-pub fn spawn_goals(
+pub fn setup_goals(
     mut commands: Commands,
-    joints: Query<(Entity, &Joint)>,
+    bones: Query<(Entity, &Bone)>,
     assets: Res<GoalVizHandles>,
 ) {
-    let target_joint_name = "hand_1";
-    let chain_length = 3;
+    let targets = vec![("hand_1", 3), ("hand_2", 3)];
 
-    let target_id = joints
-        .iter()
-        .filter_map(|(id, joint)| {
-            if joint.name == target_joint_name {
-                Some(id)
-            } else {
-                None
-            }
-        })
-        .next()
-        .expect("No valid joint found");
+    for (target_bone_name, chain_length) in targets.iter() {
+        let target_id = bones
+            .iter()
+            .filter_map(|(id, bone)| {
+                if bone.name == *target_bone_name {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .next()
+            .expect("No valid bone found");
 
-    commands
-        .spawn_bundle(IkGoalBundle {
-            transform: Transform::from_xyz(0.0, 6.0, 0.0),
-            global_transform: GlobalTransform::default(),
-            goal: IkGoal {
-                target_joint: target_id,
-                chain_length,
-            },
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(PbrBundle {
-                mesh: assets.goal_mesh_handle.clone(),
-                material: assets.goal_material_handle.clone(),
-                ..default()
+        commands
+            .spawn_bundle(IkGoalBundle {
+                transform: Transform::from_xyz(0.0, 6.0, 0.0),
+                global_transform: GlobalTransform::default(),
+                goal: IkGoal {
+                    target_bone: target_id,
+                    chain_length: *chain_length,
+                },
+            })
+            .with_children(|parent| {
+                parent.spawn_bundle(PbrBundle {
+                    mesh: assets.goal_mesh_handle.clone(),
+                    material: assets.goal_material_handle.clone(),
+                    ..default()
+                });
             });
-        });
-
-    let target_joint_name = "hand_2";
-    let chain_length = 3;
-
-    let target_id = joints
-        .iter()
-        .filter_map(|(id, joint)| {
-            if joint.name == target_joint_name {
-                Some(id)
-            } else {
-                None
-            }
-        })
-        .next()
-        .expect("No valid joint found");
-
-    commands
-        .spawn_bundle(IkGoalBundle {
-            transform: Transform::from_xyz(0.0, 6.0, 0.0),
-            global_transform: GlobalTransform::default(),
-            goal: IkGoal {
-                target_joint: target_id,
-                chain_length,
-            },
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(PbrBundle {
-                mesh: assets.goal_mesh_handle.clone(),
-                material: assets.goal_material_handle.clone(),
-                ..default()
-            });
-        });
+    }
 }
 
-pub fn setup_joint_visuals(
+pub fn setup_bone_visuals(
     mut commands: Commands,
-    joints: Query<(Entity, &Transform), With<Joint>>,
-    viz_handles: Res<JointVizHandles>,
+    bones: Query<(Entity, &Transform), With<Bone>>,
+    viz_handles: Res<BoneVizHandles>,
 ) {
-    for (joint_id, transform) in joints.iter() {
+    for (bone_id, transform) in bones.iter() {
         // joint
         let joint_viz_id = commands
             .spawn_bundle(PbrBundle {
@@ -228,7 +192,7 @@ pub fn setup_joint_visuals(
             })
             .id();
 
-        commands.entity(joint_id).push_children(&[joint_viz_id]);
+        commands.entity(bone_id).push_children(&[joint_viz_id]);
 
         // link only if there is a displacement
         let link_length = transform.translation.length();
@@ -246,7 +210,7 @@ pub fn setup_joint_visuals(
                 })
                 .id();
 
-            commands.entity(joint_id).push_children(&[link_viz_id]);
+            commands.entity(bone_id).push_children(&[link_viz_id]);
         }
     }
 }

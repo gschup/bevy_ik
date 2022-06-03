@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ik::{IkGoal, IkGoalBundle, Joint};
+use bevy_ik::{Bone, IkGoal, IkGoalBundle};
 
 use crate::{
     components::{GoalVizHandles, MannequinInstance},
@@ -72,7 +72,7 @@ pub fn tag_mannequin(
             entity_iter.for_each(|entity| {
                 if let Ok(name) = names.get(entity) {
                     if name.contains("bone") {
-                        commands.entity(entity).insert(Joint {
+                        commands.entity(entity).insert(Bone {
                             name: name.to_string(),
                         });
                     }
@@ -83,42 +83,43 @@ pub fn tag_mannequin(
     }
 }
 
-pub fn setup_goal(
+pub fn setup_goals(
     mut commands: Commands,
-    joints: Query<(Entity, &Joint)>,
+    bones: Query<(Entity, &Bone)>,
     assets: Res<GoalVizHandles>,
 ) {
-    let target_joint_name = "bone_hand.L";
-    let chain_length = 3;
+    let targets = vec![("bone_hand.L", 3)];
 
-    let target_id = joints
-        .iter()
-        .filter_map(|(id, joint)| {
-            if joint.name == target_joint_name {
-                Some(id)
-            } else {
-                None
-            }
-        })
-        .next()
-        .expect("No valid joint found");
+    for (target_bone_name, chain_length) in targets.iter() {
+        let target_id = bones
+            .iter()
+            .filter_map(|(id, bone)| {
+                if bone.name == *target_bone_name {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .next()
+            .expect("No valid bone found");
 
-    commands
-        .spawn_bundle(IkGoalBundle {
-            transform: Transform::from_xyz(0.0, 6.0, 0.0),
-            global_transform: GlobalTransform::default(),
-            goal: IkGoal {
-                target_joint: target_id,
-                chain_length,
-            },
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(PbrBundle {
-                mesh: assets.goal_mesh_handle.clone(),
-                material: assets.goal_material_handle.clone(),
-                ..default()
+        commands
+            .spawn_bundle(IkGoalBundle {
+                transform: Transform::from_xyz(0.0, 6.0, 0.0),
+                global_transform: GlobalTransform::default(),
+                goal: IkGoal {
+                    target_bone: target_id,
+                    chain_length: *chain_length,
+                },
+            })
+            .with_children(|parent| {
+                parent.spawn_bundle(PbrBundle {
+                    mesh: assets.goal_mesh_handle.clone(),
+                    material: assets.goal_material_handle.clone(),
+                    ..default()
+                });
             });
-        });
+    }
 }
 
 pub fn rotate_goal(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Time>) {

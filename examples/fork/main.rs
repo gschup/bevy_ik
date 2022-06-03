@@ -16,13 +16,13 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(InverseKinematicsPlugin::default())
         // setup
-        .add_startup_system_to_stage(StartupStage::Startup, setup_joint_assets)
+        .add_startup_system_to_stage(StartupStage::Startup, setup_bone_assets)
         .add_startup_system_to_stage(StartupStage::Startup, setup_goal_assets)
         .add_startup_system_to_stage(StartupStage::Startup, setup_fork_armature)
         .add_startup_system_to_stage(StartupStage::Startup, setup_camera)
-        // spawn_goals and setup_joint_visuals require armature to be spawned
-        .add_startup_system_to_stage(StartupStage::PostStartup, spawn_goals)
-        .add_startup_system_to_stage(StartupStage::PostStartup, setup_joint_visuals)
+        // spawn_goals and setup_bone_visuals require armature to be spawned
+        //.add_startup_system_to_stage(StartupStage::PostStartup, setup_goals)
+        .add_startup_system_to_stage(StartupStage::PostStartup, setup_bone_visuals)
         // move the goals around so it looks cool
         .add_system(rotate_goals)
         .run();

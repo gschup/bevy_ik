@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 // Resources
-pub struct JointVizHandles {
+pub struct BoneVizHandles {
     pub joint_mesh_handle: Handle<Mesh>,
     pub link_mesh_handle: Handle<Mesh>,
     pub joint_material_handle: Handle<StandardMaterial>,
