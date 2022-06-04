@@ -6,7 +6,7 @@ mod systems;
 
 use bevy::prelude::*;
 use components::{ArmatureGraph, IkData, IkSettings};
-use systems::{create_armature_tree, cache_ik_data};
+use systems::{cache_ik_data, compute_joint_positions, create_armature_tree};
 
 // reexports
 pub use components::{Bone, BoneBundle, IkGoal, IkGoalBundle};
@@ -37,8 +37,8 @@ impl Plugin for InverseKinematicsPlugin {
         .init_resource::<ArmatureGraph>()
         .init_resource::<IkData>()
         .add_system(create_armature_tree)
-        .add_system(cache_ik_data.after(create_armature_tree));
-        //.add_system(compute_bone_positions.after(cache_bone_data))
+        .add_system(cache_ik_data.after(create_armature_tree))
+        .add_system(compute_joint_positions.after(cache_ik_data));
         //.add_system(apply_bone_positions.after(compute_bone_positions));
     }
 }

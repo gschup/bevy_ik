@@ -15,6 +15,8 @@ pub struct ArmatureGraph {
     pub in_bone: HashMap<u32, Entity>,
     /// for each bone, contains the base joint
     pub base_joint: HashMap<Entity, u32>,
+    /// for each bone, contains the pole joint if existing
+    pub pole_joint: HashMap<Entity, u32>,
     /// children joints
     pub joint_children: HashMap<u32, HashSet<u32>>,
     /// parent joint

@@ -14,6 +14,9 @@ pub fn create_armature_tree(
     graph.out_bones.clear();
     graph.in_bone.clear();
     graph.base_joint.clear();
+    graph.pole_joint.clear();
+    graph.joint_children.clear();
+    graph.joint_parent.clear();
 
     let mut joint_id = 0;
 
@@ -71,6 +74,14 @@ pub fn create_armature_tree(
         }
     }
     graph.base_joint = base_joint;
+
+    // register pole joint for each bone
+    let mut pole_joint = HashMap::<Entity, u32>::new();
+    for (jid, in_bone) in graph.in_bone.iter() {
+        assert!(!graph.pole_joint.contains_key(in_bone));
+        pole_joint.insert(*in_bone, *jid);
+    }
+    graph.pole_joint = pole_joint;
 
     // joint - joint relations
     let mut joint_children = HashMap::<u32, HashSet<u32>>::new();
@@ -143,25 +154,35 @@ pub fn cache_ik_data(
             data.joint_positions.insert(*base_joint, gt.translation);
         }
     }
+
+    // bone lengths
+    for (bone_id, _, _, _) in bones.iter() {
+        if let Some(pole_joint) = graph.pole_joint.get(&bone_id) {
+            let base_joint = graph.pole_joint.get(&bone_id).unwrap();
+            let pole_pos = data.joint_positions.get(pole_joint).unwrap();
+            let base_pos = data.joint_positions.get(base_joint).unwrap();
+            let dist = pole_pos.distance(*base_pos);
+            data.bone_lengths.insert(bone_id, dist);
+        }
+    }
 }
 
-/*
-pub fn compute_bone_positions(
-    bones: Query<(Entity, &Bone, &Transform, &GlobalTransform), With<Bone>>,
+pub fn compute_joint_positions(
     goals: Query<(Entity, &GlobalTransform, &IkGoal), Without<Bone>>,
-    armature_graph: Res<ArmatureGraph>,
+    graph: Res<ArmatureGraph>,
     settings: Res<IkSettings>,
     mut data: ResMut<IkData>,
 ) {
     // queue to walk through the armature graph
-    let mut todo_queue = VecDeque::<Entity>::new();
+    let mut todo_queue = VecDeque::<u32>::new();
 
     for _ in 0..settings.max_iterations {
         // check if target bones are close enough to the goals
         let mut highest_dist: f32 = 0.0;
         for (_, goal_tf, goal) in goals.iter() {
-            let bone_tf = bones.get(goal.target_bone).unwrap().3;
-            let dist = (goal_tf.translation - bone_tf.translation).length();
+            let goal_joint = graph.base_joint.get(&goal.target_bone).unwrap();
+            let pos = data.joint_positions.get(goal_joint).unwrap();
+            let dist = (goal_tf.translation - *pos).length();
             highest_dist = highest_dist.max(dist);
         }
         if highest_dist < settings.goal_tolerance {
@@ -171,20 +192,21 @@ pub fn compute_bone_positions(
          * FORWARD PASS - LEAF TO ROOT
          */
 
-        // initialize todo queue with starting bones (bones with goals)
-        todo_queue.clear(); // should be empty anyway, but just to make sure
+        // initialize todo queue with starting joints (joints with goals)
+        todo_queue.clear();
         for (_, _, goal) in goals.iter() {
-            todo_queue.push_back(goal.target_bone);
+            let goal_joint = graph.base_joint.get(&goal.target_bone).unwrap();
+            todo_queue.push_back(*goal_joint);
         }
 
         // new positions
-        let mut new_positions = HashMap::<Entity, Vec3>::new();
+        let mut new_positions = HashMap::<u32, Vec3>::new();
 
         // actual forward pass
-        while let Some(bone_id) = todo_queue.pop_front() {
-            // check if all required bone children have a new position computed, otherwise push this bone back into the queue
+        while let Some(joint_id) = todo_queue.pop_front() {
+            // check if all required joint children have a new position computed, otherwise push this joint back into the queue
             let mut ready = true;
-            if let Some(reqs) = data.required_positions.get(&bone_id) {
+            if let Some(reqs) = data.required_positions.get(&joint_id) {
                 for req_id in reqs {
                     if !new_positions.contains_key(req_id) {
                         ready = false;
@@ -193,35 +215,37 @@ pub fn compute_bone_positions(
                 }
             }
             if !ready {
-                todo_queue.push_back(bone_id);
+                todo_queue.push_back(joint_id);
                 continue;
             }
 
-            // figure out the new forward position for this bone
-            if let Some(goal_id) = data.bones_to_goals.get(&bone_id) {
+            // figure out the new forward position for this joint
+            if let Some(goal_id) = data.joints_to_goals.get(&joint_id) {
                 // in the forward pass, the target bone of the goal is simply set to the goal position
                 let goal_transform = goals.get(*goal_id).unwrap().1;
-                new_positions.insert(bone_id, goal_transform.translation);
+                new_positions.insert(joint_id, goal_transform.translation);
             } else {
                 // otherwise compute a new position for each child
                 // the new position is the centroid of those positions
-                let old_pos = data.positions.get(&bone_id).unwrap();
-                let children = data.required_positions.get(&bone_id).unwrap();
+                let old_pos = data.joint_positions.get(&joint_id).unwrap();
+                let children = data.required_positions.get(&joint_id).unwrap();
                 let mut new_pos_centroid = Vec3::ZERO;
                 for child_id in children {
-                    let child_link_length = bones.get(*child_id).unwrap().2.translation.length();
+                    let bone_id = graph.in_bone.get(child_id).unwrap();
+                    let child_link_length = data.bone_lengths.get(bone_id).unwrap();
+
                     let new_child_pos = new_positions.get(child_id).unwrap();
-                    let dir = (*old_pos - *new_child_pos).normalize() * child_link_length;
+                    let dir = (*old_pos - *new_child_pos).normalize() * *child_link_length;
                     let new_pos = *new_child_pos + dir;
                     new_pos_centroid += new_pos;
                 }
                 new_pos_centroid *= 1. / children.len() as f32;
-                new_positions.insert(bone_id, new_pos_centroid);
+                new_positions.insert(joint_id, new_pos_centroid);
             }
 
             // if we are not at the root, push the parent to the todo_queue, if it's not already in there
-            if !data.roots.contains(&bone_id) {
-                if let Some(par_id) = armature_graph.bone_parent.get(&bone_id) {
+            if !data.roots.contains(&joint_id) {
+                if let Some(par_id) = graph.joint_parent.get(&joint_id) {
                     if !todo_queue.contains(par_id) {
                         todo_queue.push_back(*par_id);
                     }
@@ -234,31 +258,30 @@ pub fn compute_bone_positions(
          */
 
         // prepare todo queue for backward pass
-        todo_queue.clear(); // should be empty anyway, but just to make sure
+        todo_queue.clear();
         for root in data.roots.iter() {
             todo_queue.push_back(*root);
         }
 
         // actual backward pass
-        while let Some(bone_id) = todo_queue.pop_front() {
-            // useful bone data
-            let (_, _, transf, _) = bones.get(bone_id).unwrap();
-            let link_length = transf.translation.length();
+        while let Some(joint_id) = todo_queue.pop_front() {
             // if this bone is one of the roots or pseudo-roots, we just set them back to their original position
-            if data.roots.contains(&bone_id) {
-                let old_pos = data.positions.get(&bone_id).unwrap();
-                new_positions.insert(bone_id, *old_pos);
+            if data.roots.contains(&joint_id) {
+                let old_pos = data.joint_positions.get(&joint_id).unwrap();
+                new_positions.insert(joint_id, *old_pos);
             } else {
-                let par_id = armature_graph.bone_parent.get(&bone_id).unwrap();
+                let in_bone_id = graph.in_bone.get(&joint_id).unwrap();
+                let bone_length = data.bone_lengths.get(in_bone_id).unwrap();
+                let par_id = graph.joint_parent.get(&joint_id).unwrap();
                 let par_pos = new_positions.get(par_id).unwrap();
-                let forward_pos = new_positions.get(&bone_id).unwrap();
-                let dir = (*forward_pos - *par_pos).normalize() * link_length;
+                let forward_pos = new_positions.get(&joint_id).unwrap();
+                let dir = (*forward_pos - *par_pos).normalize() * *bone_length;
                 let backward_pos = *par_pos + dir;
-                new_positions.insert(bone_id, backward_pos);
+                new_positions.insert(joint_id, backward_pos);
             }
 
             // put all required children in the todo queue - those who lead to a leaf bone with IK goal
-            if let Some(children) = data.required_positions.get(&bone_id) {
+            if let Some(children) = data.required_positions.get(&joint_id) {
                 for child_id in children {
                     todo_queue.push_back(*child_id);
                 }
@@ -266,10 +289,11 @@ pub fn compute_bone_positions(
         }
 
         // "flip the buffer"
-        data.positions = new_positions;
+        data.joint_positions = new_positions;
     }
 }
 
+/*
 pub fn apply_bone_positions(
     mut bone_transforms: Query<(&mut Transform, &GlobalTransform), With<Bone>>,
     armature_graph: Res<ArmatureGraph>,
