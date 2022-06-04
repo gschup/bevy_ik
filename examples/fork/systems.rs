@@ -24,7 +24,7 @@ pub fn setup_camera(
     });
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(10.0, 5.0, 0.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
+        transform: Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
         ..default()
     });
 }
@@ -90,10 +90,11 @@ pub fn setup_fork_armature(mut commands: Commands) {
             ..default()
         })
         .with_children(|parent| {
+            // left arm
             parent
                 .spawn_bundle(BoneBundle {
                     bone: Bone {
-                        name: "fork".to_owned(),
+                        name: "left_upper_arm".to_owned(),
                     },
                     transform: Transform::from_xyz(0.0, link_lengths[0], 0.0),
                     ..default()
@@ -102,33 +103,43 @@ pub fn setup_fork_armature(mut commands: Commands) {
                     parent
                         .spawn_bundle(BoneBundle {
                             bone: Bone {
-                                name: "arm_1".to_owned(),
+                                name: "left_lower_arm".to_owned(),
                             },
-                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1]),
-
+                            transform: Transform::from_xyz(0.0, link_lengths[1], 0.0),
                             ..default()
                         })
                         .with_children(|parent| {
                             parent.spawn_bundle(BoneBundle {
                                 bone: Bone {
-                                    name: "hand_1".to_owned(),
+                                    name: "left_hand".to_owned(),
                                 },
                                 transform: Transform::from_xyz(0.0, link_lengths[2], 0.0),
                                 ..default()
                             });
                         });
+                });
+            // right arm
+            parent
+                .spawn_bundle(BoneBundle {
+                    bone: Bone {
+                        name: "right_upper_arm".to_owned(),
+                    },
+                    transform: Transform::from_xyz(0.0, link_lengths[0], 0.0),
+                    ..default()
+                })
+                .with_children(|parent| {
                     parent
                         .spawn_bundle(BoneBundle {
                             bone: Bone {
-                                name: "arm_2".to_owned(),
+                                name: "right_lower_arm".to_owned(),
                             },
-                            transform: Transform::from_xyz(0.0, 0.0, link_lengths[1]),
+                            transform: Transform::from_xyz(0.0, link_lengths[1], 0.0),
                             ..default()
                         })
                         .with_children(|parent| {
                             parent.spawn_bundle(BoneBundle {
                                 bone: Bone {
-                                    name: "hand_2".to_owned(),
+                                    name: "right_hand".to_owned(),
                                 },
                                 transform: Transform::from_xyz(0.0, link_lengths[2], 0.0),
                                 ..default()
@@ -143,7 +154,7 @@ pub fn setup_goals(
     bones: Query<(Entity, &Bone)>,
     assets: Res<GoalVizHandles>,
 ) {
-    let targets = vec![("hand_1", 3), ("hand_2", 3)];
+    let targets = vec![("left_hand", 3), ("right_hand", 3)];
 
     for (target_bone_name, chain_length) in targets.iter() {
         let target_id = bones

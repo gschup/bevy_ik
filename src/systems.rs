@@ -1,74 +1,151 @@
 use crate::components::{ArmatureGraph, Bone, IkData, IkGoal, IkSettings};
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 use std::collections::VecDeque;
 
 pub fn create_armature_tree(
     bone_parents: Query<(Entity, &Children), With<Bone>>,
     bones: Query<Entity, With<Bone>>,
-    mut armature_graph: ResMut<ArmatureGraph>,
+    mut graph: ResMut<ArmatureGraph>,
 ) {
-    // parent-child relationship graph
-    armature_graph.bone_children.clear();
-    armature_graph.bone_parent.clear();
+    // clear the graph
+    graph.out_bones.clear();
+    graph.in_bone.clear();
+    graph.base_joint.clear();
+
+    let mut joint_id = 0;
 
     for (par_id, children) in bone_parents.iter() {
-        let mut ids = Vec::new();
-        // go through all children entities
+        let mut has_children = false;
+        // gather all children bones - go through all children entities
         for &child_id in children.iter() {
-            // if the child is a bone, cache the parent-child relation
+            // if the child is a bone, register the bone as an out_bone of this next joint
             if let Ok(bone_id) = bones.get(child_id) {
-                ids.push(bone_id);
-                armature_graph.bone_parent.insert(bone_id, par_id);
+                has_children = true;
+                graph
+                    .out_bones
+                    .entry(joint_id)
+                    .or_insert(HashSet::new())
+                    .insert(bone_id);
             }
         }
-        // register all bone children
-        armature_graph.bone_children.insert(par_id, ids);
+
+        // register this bone as the incoming bone for this joint - but only if it had children
+        // leaf bones should not have joints at their end
+        if has_children {
+            graph.in_bone.insert(joint_id, par_id);
+        }
+
+        // increment joint id for the next one
+        joint_id += 1;
     }
+
+    // add missing root joints and missing leaf bones
+    // (they are not between two bones, so we didn't catch them earlier)
+    for bone_id in bones.iter() {
+        let mut is_out_bone = false;
+        for out_bones in graph.out_bones.values() {
+            if out_bones.contains(&bone_id) {
+                is_out_bone = true;
+            }
+        }
+
+        // if this bone is a root bone, add a root joint
+        if !is_out_bone {
+            graph
+                .out_bones
+                .entry(joint_id)
+                .or_insert(HashSet::new())
+                .insert(bone_id);
+        }
+    }
+
+    // register base joint for each bone
+    let mut base_joint = HashMap::<Entity, u32>::new();
+    for (jid, out_bones) in graph.out_bones.iter() {
+        for out_bone in out_bones {
+            assert!(!graph.base_joint.contains_key(out_bone));
+            base_joint.insert(*out_bone, *jid);
+        }
+    }
+    graph.base_joint = base_joint;
+
+    // joint - joint relations
+    let mut joint_children = HashMap::<u32, HashSet<u32>>::new();
+    let mut joint_parent = HashMap::<u32, u32>::new();
+    for (par_id, out_bones) in graph.out_bones.iter() {
+        for out_bone in out_bones.iter() {
+            for (child_id, in_bone) in graph.in_bone.iter() {
+                if out_bone == in_bone {
+                    joint_parent.insert(*child_id, *par_id);
+                    joint_children
+                        .entry(*par_id)
+                        .or_insert(HashSet::new())
+                        .insert(*child_id);
+                }
+            }
+        }
+    }
+    graph.joint_children = joint_children;
+    graph.joint_parent = joint_parent;
 }
 
-pub fn cache_bone_data(
+pub fn cache_ik_data(
     bones: Query<(Entity, &Bone, &Transform, &GlobalTransform), With<Bone>>,
     goals: Query<(Entity, &GlobalTransform, &IkGoal), Without<Bone>>,
-    armature_graph: Res<ArmatureGraph>,
+    graph: Res<ArmatureGraph>,
     mut data: ResMut<IkData>,
 ) {
     // reset data
+    data.joint_positions.clear();
     data.required_positions.clear();
-    data.bones_to_goals.clear();
+    data.joints_to_goals.clear();
     data.roots.clear();
-    data.positions.clear();
+    data.bone_lengths.clear();
 
-    // fill data structures with updated information
+    // register joint to goal mapping
     for (goal_id, _, goal) in goals.iter() {
-        data.bones_to_goals.insert(goal.target_bone, goal_id);
-        let mut cur_id = goal.target_bone;
+        // register target joint from goal
+        if let Some(base_joint) = graph.base_joint.get(&goal.target_bone) {
+            data.joints_to_goals.insert(*base_joint, goal_id);
+        }
+    }
+
+    // register roots and required positions
+    for (_, _, goal) in goals.iter() {
+        let mut cur_id = graph.base_joint.get(&goal.target_bone).unwrap();
         for i in 0..goal.chain_length {
-            if let Some(par_id) = armature_graph.bone_parent.get(&cur_id) {
-                // add the child bone as a required bone
+            if let Some(par_id) = graph.joint_parent.get(cur_id) {
+                // add the child bone as a required bone for the parent bone
                 data.required_positions
                     .entry(*par_id)
-                    .or_insert(Vec::new())
-                    .push(cur_id);
-                cur_id = *par_id;
+                    .or_insert(HashSet::new())
+                    .insert(*cur_id);
+                cur_id = par_id;
             } else {
                 // bone without parent, this is the root
-                data.roots.push(cur_id);
+                data.roots.insert(*cur_id);
                 break;
             }
 
             //if we stop going up the tree due to chain length limitation, this node now also counts as a pseudo-root
             if i == goal.chain_length - 1 {
-                data.roots.push(cur_id);
+                data.roots.insert(*cur_id);
             }
         }
     }
 
     // initialize positions
-    for (id, _, _, gt) in bones.iter() {
-        data.positions.insert(id, gt.translation);
+    for (bone_id, _, _, gt) in bones.iter() {
+        if let Some(base_joint) = graph.base_joint.get(&bone_id) {
+            data.joint_positions.insert(*base_joint, gt.translation);
+        }
     }
 }
 
+/*
 pub fn compute_bone_positions(
     bones: Query<(Entity, &Bone, &Transform, &GlobalTransform), With<Bone>>,
     goals: Query<(Entity, &GlobalTransform, &IkGoal), Without<Bone>>,
@@ -201,26 +278,20 @@ pub fn apply_bone_positions(
     // queue to walk through the armature graph
     let mut todo_queue = VecDeque::<Entity>::new();
 
-    // apply position changes - start from root children (roots should not move)
-    // boness and their global transforms
+    // updated - global transforms
     let mut global_transforms = HashMap::<Entity, Mat4>::new();
 
+    // enqueue roots
     for root in data.roots.iter() {
-        // register root global transform - unchanged from before
-        let global_mat = bone_transforms.get(*root).unwrap().1.compute_matrix();
-        global_transforms.insert(*root, global_mat);
-        // enqueue children
-        if let Some(children) = data.required_positions.get(root) {
-            for child_id in children {
-                todo_queue.push_back(*child_id);
-            }
-        }
+        todo_queue.push_back(*root);
     }
 
-    // work through the tree
+    // apply position changes by rotation only - from root to children
     while let Some(bone_id) = todo_queue.pop_front() {
-        let par_id = armature_graph.bone_parent.get(&bone_id).unwrap();
-        let par_mat = global_transforms.get(par_id).unwrap();
+        // bone transforms
+        let (local_tf, global_tf) = bone_transforms.get_mut(bone_id).unwrap();
+
+        /*
         let pos = data.positions.get(&bone_id).unwrap();
         let par_pos = data.positions.get(par_id).unwrap();
 
@@ -230,11 +301,9 @@ pub fn apply_bone_positions(
             .compute_matrix();
         let local_mat = par_mat.inverse() * global_mat;
 
-        // register global mat
-        global_transforms.insert(bone_id, global_mat);
-
         // update local tf
         *bone_transforms.get_mut(bone_id).unwrap().0 = Transform::from_matrix(local_mat);
+        */
 
         // enqueue relevant children
         if let Some(children) = data.required_positions.get(&bone_id) {
@@ -244,3 +313,4 @@ pub fn apply_bone_positions(
         }
     }
 }
+*/

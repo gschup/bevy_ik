@@ -1,25 +1,39 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
 // Resources
 
-/// The [`ArmatureGraph`] contains information about the [`Bone`] tree. Treat this resource as read-only.
+/// The [`ArmatureGraph`] contains information about the [`Bone`] tree.
+/// It is updated once per frame. Treat this resource as read-only.
 #[derive(Default)]
 pub struct ArmatureGraph {
-    pub bone_children: HashMap<Entity, Vec<Entity>>,
-    pub bone_parent: HashMap<Entity, Entity>,
+    /// joint ids and their outgoing bones
+    pub out_bones: HashMap<u32, HashSet<Entity>>,
+    /// joint ids and their parent bone (only a single parent, tree assumption)
+    pub in_bone: HashMap<u32, Entity>,
+    /// for each bone, contains the base joint
+    pub base_joint: HashMap<Entity, u32>,
+    /// children joints
+    pub joint_children: HashMap<u32, HashSet<u32>>,
+    /// parent joint
+    pub joint_parent: HashMap<u32, u32>,
 }
 
 /// [`IkData`] contains intermediate results of the FABRIK algorithm. Treat this resource as read-only.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct IkData {
-    /// computed new positions for bones
-    pub positions: HashMap<Entity, Vec3>,
-    /// for each bone, which children do we need info from? (some leaves might not have IK goals)
-    pub required_positions: HashMap<Entity, Vec<Entity>>,
-    /// hashmap of bone ids to goal ids
-    pub bones_to_goals: HashMap<Entity, Entity>,
-    /// FABRIK roots - bones defined by not having a parent, or by chain length, or if fixed
-    pub roots: Vec<Entity>,
+    /// armature joints and their global positions. A joint is between two bones.
+    pub joint_positions: HashMap<u32, Vec3>,
+    /// Length of each bone (distance between joints)
+    pub bone_lengths: HashMap<Entity, f32>,
+    /// for each joint, which children joints do we need info from? (some joints might not have IK goals)
+    pub required_positions: HashMap<u32, HashSet<u32>>,
+    /// hashmap of joint ids to goal ids
+    pub joints_to_goals: HashMap<u32, Entity>,
+    /// FABRIK roots - joints defined by not having a parent, or by chain length, or if fixed
+    pub roots: HashSet<u32>,
 }
 
 pub struct IkSettings {
