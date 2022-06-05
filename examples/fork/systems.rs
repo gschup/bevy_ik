@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_ik::{Bone, BoneBundle, IkGoal, IkGoalBundle};
 
-use crate::components::{BoneVizHandles, GoalVizHandles};
+use crate::{
+    components::{BoneVizHandles, GoalVizHandles},
+    GOAL_INIT, LINK_LENGTHS, TARGETS,
+};
 
 const LINK_THICKNESS: f32 = 0.1;
 const GOAL_SIZE: f32 = 0.3;
@@ -44,8 +47,8 @@ pub fn setup_bone_assets(
     });
     let link_mesh_handle = meshes.add(Mesh::from(shape::Box::new(
         LINK_THICKNESS,
-        LINK_THICKNESS,
         1.0, // scaled by the bone itself
+        LINK_THICKNESS,
     )));
     let joint_mesh_handle = meshes.add(Mesh::from(shape::Cube { size: 0.2 }));
 
@@ -79,9 +82,6 @@ pub fn setup_goal_assets(
 }
 
 pub fn setup_fork_armature(mut commands: Commands) {
-    // link lengths
-    let link_lengths = [3.0, 2.0, 1.0];
-
     commands
         .spawn_bundle(BoneBundle {
             bone: Bone {
@@ -96,7 +96,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                     bone: Bone {
                         name: "left_upper_arm".to_owned(),
                     },
-                    transform: Transform::from_xyz(0.0, link_lengths[0], 0.0),
+                    transform: Transform::from_xyz(0.0, LINK_LENGTHS[0], 0.0),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -105,7 +105,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             bone: Bone {
                                 name: "left_lower_arm".to_owned(),
                             },
-                            transform: Transform::from_xyz(0.0, link_lengths[1], 0.0),
+                            transform: Transform::from_xyz(0.0, LINK_LENGTHS[1], 0.0),
                             ..default()
                         })
                         .with_children(|parent| {
@@ -113,7 +113,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                                 bone: Bone {
                                     name: "left_hand".to_owned(),
                                 },
-                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0),
+                                transform: Transform::from_xyz(0.0, LINK_LENGTHS[2], 0.0),
                                 ..default()
                             });
                         });
@@ -124,7 +124,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                     bone: Bone {
                         name: "right_upper_arm".to_owned(),
                     },
-                    transform: Transform::from_xyz(0.0, link_lengths[0], 0.0),
+                    transform: Transform::from_xyz(0.0, LINK_LENGTHS[0], 0.0),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -133,7 +133,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             bone: Bone {
                                 name: "right_lower_arm".to_owned(),
                             },
-                            transform: Transform::from_xyz(0.0, link_lengths[1], 0.0),
+                            transform: Transform::from_xyz(0.0, LINK_LENGTHS[1], 0.0),
                             ..default()
                         })
                         .with_children(|parent| {
@@ -141,7 +141,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                                 bone: Bone {
                                     name: "right_hand".to_owned(),
                                 },
-                                transform: Transform::from_xyz(0.0, link_lengths[2], 0.0),
+                                transform: Transform::from_xyz(0.0, LINK_LENGTHS[2], 0.0),
                                 ..default()
                             });
                         });
@@ -154,9 +154,7 @@ pub fn setup_goals(
     bones: Query<(Entity, &Bone)>,
     assets: Res<GoalVizHandles>,
 ) {
-    let targets = vec![("left_hand", 3), ("right_hand", 3)];
-
-    for (target_bone_name, chain_length) in targets.iter() {
+    for (target_bone_name, chain_length) in TARGETS.iter() {
         let target_id = bones
             .iter()
             .filter_map(|(id, bone)| {
@@ -171,7 +169,7 @@ pub fn setup_goals(
 
         commands
             .spawn_bundle(IkGoalBundle {
-                transform: Transform::from_xyz(0.0, 6.0, 0.0),
+                transform: Transform::from_xyz(GOAL_INIT[0], GOAL_INIT[1], GOAL_INIT[2]),
                 global_transform: GlobalTransform::default(),
                 goal: IkGoal {
                     target_bone: target_id,
@@ -190,10 +188,10 @@ pub fn setup_goals(
 
 pub fn setup_bone_visuals(
     mut commands: Commands,
-    bones: Query<(Entity, &Transform), With<Bone>>,
+    bones: Query<Entity, With<Bone>>,
     viz_handles: Res<BoneVizHandles>,
 ) {
-    for (bone_id, transform) in bones.iter() {
+    for bone_id in bones.iter() {
         // joint
         let joint_viz_id = commands
             .spawn_bundle(PbrBundle {
@@ -205,24 +203,20 @@ pub fn setup_bone_visuals(
 
         commands.entity(bone_id).push_children(&[joint_viz_id]);
 
-        // link only if there is a displacement
-        let link_length = transform.translation.length();
-        if link_length > 0.01 {
-            let link_viz_id = commands
-                .spawn_bundle(PbrBundle {
-                    mesh: viz_handles.link_mesh_handle.clone(),
-                    material: viz_handles.link_material_handle.clone(),
-                    transform: Transform {
-                        translation: Vec3::new(0.0, 0.0, -link_length * 0.5),
-                        scale: Vec3::new(1.0, 1.0, link_length),
-                        ..default()
-                    },
+        let link_viz_id = commands
+            .spawn_bundle(PbrBundle {
+                mesh: viz_handles.link_mesh_handle.clone(),
+                material: viz_handles.link_material_handle.clone(),
+                transform: Transform {
+                    translation: Vec3::new(0.0, 0.5, 0.0),
+                    scale: Vec3::new(1.0, 1.0, 1.0),
                     ..default()
-                })
-                .id();
+                },
+                ..default()
+            })
+            .id();
 
-            commands.entity(bone_id).push_children(&[link_viz_id]);
-        }
+        commands.entity(bone_id).push_children(&[link_viz_id]);
     }
 }
 

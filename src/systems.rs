@@ -293,8 +293,11 @@ pub fn compute_joint_positions(
     }
 }
 
+const EPS: f32 = 0.001;
 pub fn apply_bone_rotations(
-    mut bone_transforms: Query<(&mut Transform, &GlobalTransform), With<Bone>>,
+    mut bones: Query<(Entity, &mut Transform), With<Bone>>,
+    parents: Query<&Parent>,
+    global_tfs: Query<&GlobalTransform>,
     graph: Res<ArmatureGraph>,
     data: Res<IkData>,
 ) {
@@ -302,15 +305,76 @@ pub fn apply_bone_rotations(
     let mut todo_queue = VecDeque::<Entity>::new();
 
     // updated - global transforms
-    let mut global_transforms = HashMap::<Entity, Mat4>::new();
+    let mut par_tfs_global = HashMap::<Entity, GlobalTransform>::new();
 
-    // enqueue bones connected to root
-    for root in data.roots.iter() {
-        for out_bone in graph.out_bones.get(root).unwrap() {
-            todo_queue.push_back(*out_bone);
+    // enqueue bones connected to a root joint
+    for (bone_id, _) in bones.iter() {
+        let base_joint = graph.base_joint.get(&bone_id).unwrap();
+        // check if this bone is associated to a root joint
+        if data.roots.contains(base_joint) {
+            // enqueue the bone
+            todo_queue.push_back(bone_id);
+            // register the global transform of the parent, if no parent exists, register identity transform
+            if let Ok(parent) = parents.get(bone_id) {
+                let global_tf = global_tfs.get(parent.0).unwrap(); // each parent should have a global transform
+                par_tfs_global.insert(bone_id, *global_tf);
+            } else {
+                par_tfs_global.insert(bone_id, GlobalTransform::identity());
+            }
         }
     }
 
     // apply position changes by rotation only - from root to children
-    while let Some(bone_id) = todo_queue.pop_front() {}
+    while let Some(bone_id) = todo_queue.pop_front() {
+        let base_tf_local = bones.get_mut(bone_id).unwrap().1;
+        let par_tf_global = *par_tfs_global.get(&bone_id).unwrap();
+        let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
+        let base_joint = graph.base_joint.get(&bone_id).unwrap();
+        let base_pos_global = *data.joint_positions.get(base_joint).unwrap();
+
+        // check that the base is already at the correct position
+        assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
+
+        if let Some(pole_joint) = graph.pole_joint.get(&bone_id) {
+            if let Some(&new_pole_pos_global) = data.joint_positions.get(pole_joint) {
+                // ASSUMPTION: ALL CHILD BONES HAVE THE SAME LOCAL TRANSLATION
+                let pole_tf_local = *graph
+                    .out_bones
+                    .get(pole_joint)
+                    .unwrap() // if the bone has a pole_joint, it has to have child bones
+                    .iter()
+                    .map(|&bid| bones.get(bid).unwrap().1)
+                    .next()
+                    .unwrap(); // if the bone has child_bones, it has to have at least one
+
+                let pole_tf_global = base_tf_global.mul_transform(pole_tf_local);
+
+                let old_pole_pos_global = pole_tf_global.translation;
+
+                let old_dir = old_pole_pos_global - base_pos_global;
+                let new_dir = new_pole_pos_global - base_pos_global;
+
+                // generate quaternion and apply
+                let rot = Quat::from_rotation_arc(old_dir.normalize(), new_dir.normalize());
+                let mut base_tf_local = bones.get_mut(bone_id).unwrap().1;
+                base_tf_local.rotate(rot);
+
+                // update global transform
+                let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
+
+                // check that the updated global base of the bone is at the correct position
+                assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
+
+                // check that the updated global pole of the bone is at the correct position
+                let pole_tf_global = base_tf_global.mul_transform(pole_tf_local);
+                assert!(pole_tf_global.translation.distance(new_pole_pos_global) < EPS);
+
+                // register new global tf for all bone children and add them to the queue
+                for child_bone in graph.out_bones.get(pole_joint).unwrap() {
+                    todo_queue.push_back(*child_bone);
+                    par_tfs_global.insert(*child_bone, base_tf_global);
+                }
+            }
+        }
+    }
 }

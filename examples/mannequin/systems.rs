@@ -88,7 +88,7 @@ pub fn setup_goals(
     bones: Query<(Entity, &Bone)>,
     assets: Res<GoalVizHandles>,
 ) {
-    let targets = vec![("bone_hand.L", 3)];
+    let targets = vec![("bone_hand.L", 1)];
 
     for (target_bone_name, chain_length) in targets.iter() {
         let target_id = bones
