@@ -109,7 +109,7 @@ pub fn cache_ik_data(
     graph: Res<ArmatureGraph>,
     mut data: ResMut<IkData>,
 ) {
-    // reset data
+    // clear the data
     data.joint_positions.clear();
     data.required_positions.clear();
     data.joints_to_goals.clear();
@@ -158,7 +158,7 @@ pub fn cache_ik_data(
     // bone lengths
     for (bone_id, _, _, _) in bones.iter() {
         if let Some(pole_joint) = graph.pole_joint.get(&bone_id) {
-            let base_joint = graph.pole_joint.get(&bone_id).unwrap();
+            let base_joint = graph.base_joint.get(&bone_id).unwrap();
             let pole_pos = data.joint_positions.get(pole_joint).unwrap();
             let base_pos = data.joint_positions.get(base_joint).unwrap();
             let dist = pole_pos.distance(*base_pos);
@@ -168,7 +168,7 @@ pub fn cache_ik_data(
 }
 
 pub fn compute_joint_positions(
-    goals: Query<(Entity, &GlobalTransform, &IkGoal), Without<Bone>>,
+    goals: Query<(&GlobalTransform, &IkGoal)>,
     graph: Res<ArmatureGraph>,
     settings: Res<IkSettings>,
     mut data: ResMut<IkData>,
@@ -179,7 +179,7 @@ pub fn compute_joint_positions(
     for _ in 0..settings.max_iterations {
         // check if target bones are close enough to the goals
         let mut highest_dist: f32 = 0.0;
-        for (_, goal_tf, goal) in goals.iter() {
+        for (goal_tf, goal) in goals.iter() {
             let goal_joint = graph.base_joint.get(&goal.target_bone).unwrap();
             let pos = data.joint_positions.get(goal_joint).unwrap();
             let dist = (goal_tf.translation - *pos).length();
@@ -194,7 +194,7 @@ pub fn compute_joint_positions(
 
         // initialize todo queue with starting joints (joints with goals)
         todo_queue.clear();
-        for (_, _, goal) in goals.iter() {
+        for (_, goal) in goals.iter() {
             let goal_joint = graph.base_joint.get(&goal.target_bone).unwrap();
             todo_queue.push_back(*goal_joint);
         }
@@ -222,7 +222,7 @@ pub fn compute_joint_positions(
             // figure out the new forward position for this joint
             if let Some(goal_id) = data.joints_to_goals.get(&joint_id) {
                 // in the forward pass, the target bone of the goal is simply set to the goal position
-                let goal_transform = goals.get(*goal_id).unwrap().1;
+                let (goal_transform, _) = goals.get(*goal_id).unwrap();
                 new_positions.insert(joint_id, goal_transform.translation);
             } else {
                 // otherwise compute a new position for each child
@@ -293,10 +293,9 @@ pub fn compute_joint_positions(
     }
 }
 
-/*
-pub fn apply_bone_positions(
+pub fn apply_bone_rotations(
     mut bone_transforms: Query<(&mut Transform, &GlobalTransform), With<Bone>>,
-    armature_graph: Res<ArmatureGraph>,
+    graph: Res<ArmatureGraph>,
     data: Res<IkData>,
 ) {
     // queue to walk through the armature graph
@@ -305,36 +304,13 @@ pub fn apply_bone_positions(
     // updated - global transforms
     let mut global_transforms = HashMap::<Entity, Mat4>::new();
 
-    // enqueue roots
+    // enqueue bones connected to root
     for root in data.roots.iter() {
-        todo_queue.push_back(*root);
+        for out_bone in graph.out_bones.get(root).unwrap() {
+            todo_queue.push_back(*out_bone);
+        }
     }
 
     // apply position changes by rotation only - from root to children
-    while let Some(bone_id) = todo_queue.pop_front() {
-        // bone transforms
-        let (local_tf, global_tf) = bone_transforms.get_mut(bone_id).unwrap();
-
-        /*
-        let pos = data.positions.get(&bone_id).unwrap();
-        let par_pos = data.positions.get(par_id).unwrap();
-
-        // compute global and local mat
-        let global_mat = Transform::from_translation(*pos)
-            .looking_at(*par_pos, Vec3::X)
-            .compute_matrix();
-        let local_mat = par_mat.inverse() * global_mat;
-
-        // update local tf
-        *bone_transforms.get_mut(bone_id).unwrap().0 = Transform::from_matrix(local_mat);
-        */
-
-        // enqueue relevant children
-        if let Some(children) = data.required_positions.get(&bone_id) {
-            for child_id in children {
-                todo_queue.push_back(*child_id);
-            }
-        }
-    }
+    while let Some(bone_id) = todo_queue.pop_front() {}
 }
-*/
