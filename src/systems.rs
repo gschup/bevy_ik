@@ -301,6 +301,12 @@ pub fn apply_bone_rotations(
     graph: Res<ArmatureGraph>,
     data: Res<IkData>,
 ) {
+    println!("###################");
+    println!("OUT BONES {:?}", graph.out_bones);
+    println!("IN BONE {:?}", graph.in_bone);
+    println!("POS {:?}", data.joint_positions);
+    println!("###################");
+
     // queue to walk through the armature graph
     let mut todo_queue = VecDeque::<Entity>::new();
 
@@ -326,6 +332,7 @@ pub fn apply_bone_rotations(
 
     // apply position changes by rotation only - from root to children
     while let Some(bone_id) = todo_queue.pop_front() {
+        println!("+++ {:?} +++", bone_id);
         let base_tf_local = bones.get_mut(bone_id).unwrap().1;
         let par_tf_global = *par_tfs_global.get(&bone_id).unwrap();
         let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
@@ -333,6 +340,7 @@ pub fn apply_bone_rotations(
         let base_pos_global = *data.joint_positions.get(base_joint).unwrap();
 
         // check that the base is already at the correct position
+        // (this should be the same as the pole check of the previous iteration)
         assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
 
         if let Some(pole_joint) = graph.pole_joint.get(&bone_id) {
@@ -347,26 +355,33 @@ pub fn apply_bone_rotations(
                     .next()
                     .unwrap(); // if the bone has child_bones, it has to have at least one
 
-                let pole_tf_global = base_tf_global.mul_transform(pole_tf_local);
+                // generate global quaternion
+                let new_dir_global = new_pole_pos_global - base_pos_global;
 
-                let old_pole_pos_global = pole_tf_global.translation;
+                let base_tf_inv = base_tf_global.compute_matrix().inverse();
+                let new_dir_local = mat4_mul_vec3(base_tf_inv, new_dir_global);
+                let rot_loc = Quat::from_rotation_arc(
+                    pole_tf_local.translation.normalize(),
+                    new_dir_local.normalize(),
+                );
 
-                let old_dir = old_pole_pos_global - base_pos_global;
-                let new_dir = new_pole_pos_global - base_pos_global;
-
-                // generate quaternion and apply
-                let rot = Quat::from_rotation_arc(old_dir.normalize(), new_dir.normalize());
+                // apply the rotation
                 let mut base_tf_local = bones.get_mut(bone_id).unwrap().1;
-                base_tf_local.rotate(rot);
+                base_tf_local.rotate(rot_loc);
 
-                // update global transform
+                // update global base transform
                 let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
 
-                // check that the updated global base of the bone is at the correct position
-                assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
-
-                // check that the updated global pole of the bone is at the correct position
+                // compute global pole transform
                 let pole_tf_global = base_tf_global.mul_transform(pole_tf_local);
+
+                println!("BASE GOAL {}", base_pos_global);
+                println!("BASE ACTL {}", base_tf_global.translation);
+                println!("POLE GOAL {}", new_pole_pos_global);
+                println!("POLE ACTL {}", pole_tf_global.translation);
+
+                // check that the updated global base and pole are at the correct position
+                assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
                 assert!(pole_tf_global.translation.distance(new_pole_pos_global) < EPS);
 
                 // register new global tf for all bone children and add them to the queue
@@ -377,4 +392,10 @@ pub fn apply_bone_rotations(
             }
         }
     }
+}
+
+fn mat4_mul_vec3(m: Mat4, v: Vec3) -> Vec3 {
+    let v4 = Vec4::new(v[0], v[1], v[2], 1.0);
+    let r4 = m.mul_vec4(v4);
+    Vec3::new(r4[0] / r4[3], r4[1] / r4[3], r4[2] / r4[3])
 }

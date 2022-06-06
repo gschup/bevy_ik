@@ -27,7 +27,7 @@ pub fn setup_camera(
     });
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
+        transform: Transform::from_xyz(10.0, 5.0, 0.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
         ..default()
     });
 }
@@ -208,8 +208,8 @@ pub fn setup_bone_visuals(
                 mesh: viz_handles.link_mesh_handle.clone(),
                 material: viz_handles.link_material_handle.clone(),
                 transform: Transform {
-                    translation: Vec3::new(0.0, 0.5, 0.0),
-                    scale: Vec3::new(1.0, 1.0, 1.0),
+                    translation: Vec3::new(0.0, 0.25, 0.0),
+                    scale: Vec3::new(1.0, 0.5, 1.0),
                     ..default()
                 },
                 ..default()

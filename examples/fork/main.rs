@@ -5,9 +5,9 @@ use bevy::prelude::*;
 use bevy_ik::InverseKinematicsPlugin;
 use systems::*;
 
-const TARGETS: [(&str, u32); 1] = [("left_hand", 1) /*, ("right_hand", 2)*/];
+const TARGETS: [(&str, u32); 1] = [("left_hand", 3) /*, ("right_hand", 3)*/];
 const LINK_LENGTHS: [f32; 3] = [3.0, 2.0, 1.0];
-const GOAL_INIT: [f32; 3] = [1.5, 3.5, 1.0];
+const GOAL_INIT: [f32; 3] = [0.0, 4.0, 2.0];
 
 fn main() {
     App::new()
