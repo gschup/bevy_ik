@@ -27,7 +27,7 @@ pub fn setup_camera(
     });
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(10.0, 5.0, 0.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
+        transform: Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
         ..default()
     });
 }
@@ -118,6 +118,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             });
                         });
                 });
+            /*
             // right arm
             parent
                 .spawn_bundle(BoneBundle {
@@ -146,6 +147,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             });
                         });
                 });
+                */
         });
 }
 

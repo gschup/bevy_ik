@@ -11,7 +11,7 @@ use systems::*;
 // reexports
 pub use components::{Bone, BoneBundle, IkGoal, IkGoalBundle};
 
-pub const DEFAULT_GOAL_TOLERANCE: f32 = 0.01;
+pub const DEFAULT_GOAL_TOLERANCE: f32 = 0.0001;
 pub const DEFAULT_MAX_ITERATIONS: u32 = 100;
 
 pub struct InverseKinematicsPlugin {

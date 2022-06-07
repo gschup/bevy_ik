@@ -293,7 +293,7 @@ pub fn compute_joint_positions(
     }
 }
 
-const EPS: f32 = 0.001;
+const EPS: f32 = 0.01;
 pub fn apply_bone_rotations(
     mut bones: Query<(Entity, &mut Transform), With<Bone>>,
     parents: Query<&Parent>,
@@ -306,7 +306,6 @@ pub fn apply_bone_rotations(
     println!("IN BONE {:?}", graph.in_bone);
     println!("POS {:?}", data.joint_positions);
     println!("###################");
-
     // queue to walk through the armature graph
     let mut todo_queue = VecDeque::<Entity>::new();
 
@@ -334,7 +333,7 @@ pub fn apply_bone_rotations(
     while let Some(bone_id) = todo_queue.pop_front() {
         println!("+++ {:?} +++", bone_id);
         let base_tf_local = bones.get_mut(bone_id).unwrap().1;
-        let par_tf_global = *par_tfs_global.get(&bone_id).unwrap();
+        let par_tf_global = par_tfs_global.get(&bone_id).unwrap();
         let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
         let base_joint = graph.base_joint.get(&bone_id).unwrap();
         let base_pos_global = *data.joint_positions.get(base_joint).unwrap();
@@ -355,19 +354,25 @@ pub fn apply_bone_rotations(
                     .next()
                     .unwrap(); // if the bone has child_bones, it has to have at least one
 
-                // generate global quaternion
-                let new_dir_global = new_pole_pos_global - base_pos_global;
+                // generate rotation
+                let base_rot_inv = base_tf_global.rotation.inverse().normalize();
+                let new_dir = base_rot_inv.mul_vec3(new_pole_pos_global)
+                    - base_rot_inv.mul_vec3(base_pos_global);
 
-                let base_tf_inv = base_tf_global.compute_matrix().inverse();
-                let new_dir_local = mat4_mul_vec3(base_tf_inv, new_dir_global);
-                let rot_loc = Quat::from_rotation_arc(
+                let rot = Quat::from_rotation_arc(
                     pole_tf_local.translation.normalize(),
-                    new_dir_local.normalize(),
+                    new_dir.normalize(),
+                );
+
+                println!(
+                    "ROTATE FROM {} TO {}",
+                    pole_tf_local.translation.normalize(),
+                    new_dir.normalize()
                 );
 
                 // apply the rotation
                 let mut base_tf_local = bones.get_mut(bone_id).unwrap().1;
-                base_tf_local.rotate(rot_loc);
+                base_tf_local.rotate(rot);
 
                 // update global base transform
                 let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
@@ -392,10 +397,4 @@ pub fn apply_bone_rotations(
             }
         }
     }
-}
-
-fn mat4_mul_vec3(m: Mat4, v: Vec3) -> Vec3 {
-    let v4 = Vec4::new(v[0], v[1], v[2], 1.0);
-    let r4 = m.mul_vec4(v4);
-    Vec3::new(r4[0] / r4[3], r4[1] / r4[3], r4[2] / r4[3])
 }
