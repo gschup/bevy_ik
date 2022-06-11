@@ -7,7 +7,7 @@ use systems::*;
 
 const TARGETS: [(&str, u32); 1] = [("left_hand", 2) /*, ("right_hand", 3)*/];
 const LINK_LENGTHS: [f32; 3] = [3.0, 2.0, 1.0];
-const GOAL_INIT: [f32; 3] = [0.0, 2.0, 2.0];
+const GOAL_INIT: [f32; 3] = [0.0, 6.0, 0.0];
 
 fn main() {
     App::new()
@@ -28,6 +28,6 @@ fn main() {
         .add_startup_system_to_stage(StartupStage::PostStartup, setup_goals)
         .add_startup_system_to_stage(StartupStage::PostStartup, setup_bone_visuals)
         // move the goals around so it looks cool
-        //.add_system(rotate_goals)
+        .add_system(rotate_goals)
         .run();
 }

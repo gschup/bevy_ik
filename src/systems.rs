@@ -332,9 +332,9 @@ pub fn apply_bone_rotations(
     // apply position changes by rotation only - from root to children
     while let Some(bone_id) = todo_queue.pop_front() {
         println!("+++ {:?} +++", bone_id);
-        let base_tf_local = bones.get_mut(bone_id).unwrap().1;
+        let base_tf_local = *bones.get_mut(bone_id).unwrap().1;
         let par_tf_global = par_tfs_global.get(&bone_id).unwrap();
-        let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
+        let base_tf_global = par_tf_global.mul_transform(base_tf_local);
         let base_joint = graph.base_joint.get(&bone_id).unwrap();
         let base_pos_global = *data.joint_positions.get(base_joint).unwrap();
 
@@ -355,24 +355,21 @@ pub fn apply_bone_rotations(
                     .unwrap(); // if the bone has child_bones, it has to have at least one
 
                 // generate rotation
-                let base_rot_inv = base_tf_global.rotation.inverse().normalize();
-                let new_dir = base_rot_inv.mul_vec3(new_pole_pos_global)
-                    - base_rot_inv.mul_vec3(base_pos_global);
+                let par_rot = par_tf_global.rotation.normalize();
+                let global_rot = base_tf_global.rotation.normalize();
+                let local_rot = base_tf_local.rotation.normalize();
+                let old_dir = pole_tf_local.translation;
+                let new_dir_global = new_pole_pos_global - base_pos_global;
+                let new_dir = global_rot.mul_vec3(new_dir_global);
 
-                let rot = Quat::from_rotation_arc(
-                    pole_tf_local.translation.normalize(),
-                    new_dir.normalize(),
-                );
+                let new_rot = Quat::from_rotation_arc(old_dir.normalize(), new_dir.normalize());
 
-                println!(
-                    "ROTATE FROM {} TO {}",
-                    pole_tf_local.translation.normalize(),
-                    new_dir.normalize()
-                );
+                println!("GLOBAL ROT {}, {}", global_rot, global_rot.inverse());
+                println!("ROTATE FROM {} TO {}", old_dir, new_dir);
 
                 // apply the rotation
                 let mut base_tf_local = bones.get_mut(bone_id).unwrap().1;
-                base_tf_local.rotate(rot);
+                base_tf_local.rotate(new_rot);
 
                 // update global base transform
                 let base_tf_global = par_tf_global.mul_transform(*base_tf_local);
@@ -380,8 +377,6 @@ pub fn apply_bone_rotations(
                 // compute global pole transform
                 let pole_tf_global = base_tf_global.mul_transform(pole_tf_local);
 
-                println!("BASE GOAL {}", base_pos_global);
-                println!("BASE ACTL {}", base_tf_global.translation);
                 println!("POLE GOAL {}", new_pole_pos_global);
                 println!("POLE ACTL {}", pole_tf_global.translation);
 
