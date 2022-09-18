@@ -11,11 +11,10 @@ repository = "https://github.com/gschup/humanoid_ik"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.7", default-features = false }
+bevy = { version = "0.8", default-features = false }
 
 [dev-dependencies]
-bevy = "0.7"
-bevy-inspector-egui = "0.11.0"
+bevy = "0.8"
 
 [[example]]
 name = "fork"

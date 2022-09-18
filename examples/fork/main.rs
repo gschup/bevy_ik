@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_ik::InverseKinematicsPlugin;
 use systems::*;
 
-const TARGETS: [(&str, u32); 1] = [("left_hand", 2) /*, ("right_hand", 3)*/];
+const TARGETS: [(&str, u32); 1] = [("left_hand", 1) /*, ("right_hand", 3)*/];
 const LINK_LENGTHS: [f32; 3] = [3.0, 2.0, 1.0];
 const GOAL_INIT: [f32; 3] = [0.0, 6.0, 0.0];
 

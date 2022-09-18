@@ -151,7 +151,7 @@ pub fn cache_ik_data(
     // initialize positions
     for (bone_id, _, _, gt) in bones.iter() {
         if let Some(base_joint) = graph.base_joint.get(&bone_id) {
-            data.joint_positions.insert(*base_joint, gt.translation);
+            data.joint_positions.insert(*base_joint, gt.translation());
         }
     }
 
@@ -182,7 +182,7 @@ pub fn compute_joint_positions(
         for (goal_tf, goal) in goals.iter() {
             let goal_joint = graph.base_joint.get(&goal.target_bone).unwrap();
             let pos = data.joint_positions.get(goal_joint).unwrap();
-            let dist = (goal_tf.translation - *pos).length();
+            let dist = (goal_tf.translation() - *pos).length();
             highest_dist = highest_dist.max(dist);
         }
         if highest_dist < settings.goal_tolerance {
@@ -223,7 +223,7 @@ pub fn compute_joint_positions(
             if let Some(goal_id) = data.joints_to_goals.get(&joint_id) {
                 // in the forward pass, the target bone of the goal is simply set to the goal position
                 let (goal_transform, _) = goals.get(*goal_id).unwrap();
-                new_positions.insert(joint_id, goal_transform.translation);
+                new_positions.insert(joint_id, goal_transform.translation());
             } else {
                 // otherwise compute a new position for each child
                 // the new position is the centroid of those positions
@@ -321,7 +321,7 @@ pub fn apply_bone_rotations(
             todo_queue.push_back(bone_id);
             // register the global transform of the parent, if no parent exists, register identity transform
             if let Ok(parent) = parents.get(bone_id) {
-                let global_tf = global_tfs.get(parent.0).unwrap(); // each parent should have a global transform
+                let global_tf = global_tfs.get(parent.get()).unwrap(); // each parent should have a global transform
                 par_tfs_global.insert(bone_id, *global_tf);
             } else {
                 par_tfs_global.insert(bone_id, GlobalTransform::identity());
@@ -340,7 +340,7 @@ pub fn apply_bone_rotations(
 
         // check that the base is already at the correct position
         // (this should be the same as the pole check of the previous iteration)
-        assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
+        assert!(base_tf_global.translation().distance(base_pos_global) < EPS);
 
         if let Some(pole_joint) = graph.pole_joint.get(&bone_id) {
             if let Some(&new_pole_pos_global) = data.joint_positions.get(pole_joint) {
@@ -355,16 +355,17 @@ pub fn apply_bone_rotations(
                     .unwrap(); // if the bone has child_bones, it has to have at least one
 
                 // generate rotation
-                let par_rot = par_tf_global.rotation.normalize();
-                let global_rot = base_tf_global.rotation.normalize();
+                let par_rot = par_tf_global.compute_transform().rotation.normalize();
+                let global_rot = base_tf_global.compute_transform().rotation.normalize();
                 let local_rot = base_tf_local.rotation.normalize();
                 let old_dir = pole_tf_local.translation;
                 let new_dir_global = new_pole_pos_global - base_pos_global;
                 let new_dir = global_rot.mul_vec3(new_dir_global);
 
-                let new_rot = Quat::from_rotation_arc(old_dir.normalize(), new_dir.normalize());
+                let new_rot =
+                    Quat::from_rotation_arc(old_dir.normalize(), new_dir_global.normalize());
 
-                println!("GLOBAL ROT {}, {}", global_rot, global_rot.inverse());
+                println!("GLOBAL ROT {}", global_rot);
                 println!("ROTATE FROM {} TO {}", old_dir, new_dir);
 
                 // apply the rotation
@@ -378,11 +379,11 @@ pub fn apply_bone_rotations(
                 let pole_tf_global = base_tf_global.mul_transform(pole_tf_local);
 
                 println!("POLE GOAL {}", new_pole_pos_global);
-                println!("POLE ACTL {}", pole_tf_global.translation);
+                println!("POLE ACTL {}", pole_tf_global.translation());
 
                 // check that the updated global base and pole are at the correct position
-                assert!(base_tf_global.translation.distance(base_pos_global) < EPS);
-                assert!(pole_tf_global.translation.distance(new_pole_pos_global) < EPS);
+                assert!(base_tf_global.translation().distance(base_pos_global) < EPS);
+                assert!(pole_tf_global.translation().distance(new_pole_pos_global) < EPS);
 
                 // register new global tf for all bone children and add them to the queue
                 for child_bone in graph.out_bones.get(pole_joint).unwrap() {

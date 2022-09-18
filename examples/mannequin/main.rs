@@ -3,7 +3,6 @@ mod systems;
 
 use bevy::prelude::*;
 use bevy_ik::InverseKinematicsPlugin;
-use bevy_inspector_egui::WorldInspectorPlugin;
 use components::MannequinInstance;
 use systems::*;
 
@@ -23,7 +22,6 @@ fn main() {
         })
         .init_resource::<MannequinInstance>()
         .add_plugins(DefaultPlugins)
-        .add_plugin(WorldInspectorPlugin::new())
         .add_plugin(InverseKinematicsPlugin::default())
         .add_state(AppState::Loading)
         .add_system_set(
