@@ -7,7 +7,7 @@ use bevy::{
 
 /// The [`ArmatureGraph`] contains information about the [`Bone`] tree.
 /// It is updated once per frame. Treat this resource as read-only.
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct ArmatureGraph {
     /// joint ids and their outgoing bones
     pub out_bones: HashMap<u32, HashSet<Entity>>,
@@ -24,7 +24,7 @@ pub struct ArmatureGraph {
 }
 
 /// [`IkData`] contains intermediate results of the FABRIK algorithm. Treat this resource as read-only.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Resource)]
 pub struct IkData {
     /// armature joints and their global positions. A joint is between two bones.
     pub joint_positions: HashMap<u32, Vec3>,
@@ -38,6 +38,7 @@ pub struct IkData {
     pub roots: HashSet<u32>,
 }
 
+#[derive(Default, Debug, Resource)]
 pub struct IkSettings {
     pub goal_tolerance: f32,
     pub max_iterations: u32,

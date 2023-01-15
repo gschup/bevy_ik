@@ -27,11 +27,7 @@ pub fn create_armature_tree(
             // if the child is a bone, register the bone as an out_bone of this next joint
             if let Ok(bone_id) = bones.get(child_id) {
                 has_children = true;
-                graph
-                    .out_bones
-                    .entry(joint_id)
-                    .or_insert(HashSet::new())
-                    .insert(bone_id);
+                graph.out_bones.entry(joint_id).or_default().insert(bone_id);
             }
         }
 
@@ -57,11 +53,7 @@ pub fn create_armature_tree(
 
         // if this bone is a root bone, add a root joint
         if !is_out_bone {
-            graph
-                .out_bones
-                .entry(joint_id)
-                .or_insert(HashSet::new())
-                .insert(bone_id);
+            graph.out_bones.entry(joint_id).or_default().insert(bone_id);
         }
     }
 
@@ -91,10 +83,7 @@ pub fn create_armature_tree(
             for (child_id, in_bone) in graph.in_bone.iter() {
                 if out_bone == in_bone {
                     joint_parent.insert(*child_id, *par_id);
-                    joint_children
-                        .entry(*par_id)
-                        .or_insert(HashSet::new())
-                        .insert(*child_id);
+                    joint_children.entry(*par_id).or_default().insert(*child_id);
                 }
             }
         }
@@ -132,7 +121,7 @@ pub fn cache_ik_data(
                 // add the child bone as a required bone for the parent bone
                 data.required_positions
                     .entry(*par_id)
-                    .or_insert(HashSet::new())
+                    .or_default()
                     .insert(*cur_id);
                 cur_id = par_id;
             } else {
@@ -324,7 +313,7 @@ pub fn apply_bone_rotations(
                 let global_tf = global_tfs.get(parent.get()).unwrap(); // each parent should have a global transform
                 par_tfs_global.insert(bone_id, *global_tf);
             } else {
-                par_tfs_global.insert(bone_id, GlobalTransform::identity());
+                par_tfs_global.insert(bone_id, GlobalTransform::IDENTITY);
             }
         }
     }

@@ -15,18 +15,18 @@ pub fn setup_camera(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Plane
-    commands.spawn_bundle(PbrBundle {
+    commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Plane { size: 100000.0 })),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
     // light
-    commands.spawn_bundle(PointLightBundle {
+    commands.spawn(PointLightBundle {
         transform: Transform::from_xyz(4.0, 5.0, -4.0),
         ..default()
     });
     // camera
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::Y * 3.0, Vec3::Y),
         ..default()
     });
@@ -83,7 +83,7 @@ pub fn setup_goal_assets(
 
 pub fn setup_fork_armature(mut commands: Commands) {
     commands
-        .spawn_bundle(BoneBundle {
+        .spawn(BoneBundle {
             bone: Bone {
                 name: "root".to_owned(),
             },
@@ -92,7 +92,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
         .with_children(|parent| {
             // left arm
             parent
-                .spawn_bundle(BoneBundle {
+                .spawn(BoneBundle {
                     bone: Bone {
                         name: "left_upper_arm".to_owned(),
                     },
@@ -101,7 +101,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                 })
                 .with_children(|parent| {
                     parent
-                        .spawn_bundle(BoneBundle {
+                        .spawn(BoneBundle {
                             bone: Bone {
                                 name: "left_lower_arm".to_owned(),
                             },
@@ -109,7 +109,7 @@ pub fn setup_fork_armature(mut commands: Commands) {
                             ..default()
                         })
                         .with_children(|parent| {
-                            parent.spawn_bundle(BoneBundle {
+                            parent.spawn(BoneBundle {
                                 bone: Bone {
                                     name: "left_hand".to_owned(),
                                 },
@@ -170,7 +170,7 @@ pub fn setup_goals(
             .expect("No valid bone found");
 
         commands
-            .spawn_bundle(IkGoalBundle {
+            .spawn(IkGoalBundle {
                 transform: Transform::from_xyz(GOAL_INIT[0], GOAL_INIT[1], GOAL_INIT[2]),
                 global_transform: GlobalTransform::default(),
                 goal: IkGoal {
@@ -179,7 +179,7 @@ pub fn setup_goals(
                 },
             })
             .with_children(|parent| {
-                parent.spawn_bundle(PbrBundle {
+                parent.spawn(PbrBundle {
                     mesh: assets.goal_mesh_handle.clone(),
                     material: assets.goal_material_handle.clone(),
                     ..default()
@@ -196,7 +196,7 @@ pub fn setup_bone_visuals(
     for bone_id in bones.iter() {
         // joint
         let joint_viz_id = commands
-            .spawn_bundle(PbrBundle {
+            .spawn(PbrBundle {
                 mesh: viz_handles.joint_mesh_handle.clone(),
                 material: viz_handles.joint_material_handle.clone(),
                 ..default()
@@ -206,7 +206,7 @@ pub fn setup_bone_visuals(
         commands.entity(bone_id).push_children(&[joint_viz_id]);
 
         let link_viz_id = commands
-            .spawn_bundle(PbrBundle {
+            .spawn(PbrBundle {
                 mesh: viz_handles.link_mesh_handle.clone(),
                 material: viz_handles.link_material_handle.clone(),
                 transform: Transform {
@@ -229,7 +229,7 @@ pub fn rotate_goals(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Ti
         let height = 2.;
         let dir = ((i % 2) as f32 * 2.) - 1.; // either 1 or -1
         let speed = 0.001 * (i + 1) as f32;
-        let ms = time.time_since_startup().as_millis() as f32;
+        let ms = time.elapsed().as_millis() as f32;
         let t = ms * speed * dir;
         let x = rad * t.cos();
         let z = rad * t.sin();

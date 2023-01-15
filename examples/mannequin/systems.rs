@@ -34,18 +34,18 @@ pub fn setup_camera(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Plane
-    commands.spawn_bundle(PbrBundle {
+    commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Plane { size: 100000.0 })),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
     // light
-    commands.spawn_bundle(PointLightBundle {
+    commands.spawn(PointLightBundle {
         transform: Transform::from_xyz(5.0, 5.0, 5.0),
         ..default()
     });
     // camera
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 2.0, 3.0).looking_at(Vec3::Y * 0.75, Vec3::Y),
         ..default()
     });
@@ -68,8 +68,8 @@ pub fn tag_mannequin(
     mut app_state: ResMut<State<AppState>>,
 ) {
     if let Some(instance_id) = scene_instance.0 {
-        if let Some(entity_iter) = scene_spawner.iter_instance_entities(instance_id) {
-            entity_iter.for_each(|entity| {
+        if scene_spawner.instance_is_ready(instance_id) {
+            for entity in scene_spawner.iter_instance_entities(instance_id) {
                 if let Ok(name) = names.get(entity) {
                     if name.contains("bone") {
                         commands.entity(entity).insert(Bone {
@@ -77,7 +77,7 @@ pub fn tag_mannequin(
                         });
                     }
                 }
-            });
+            }
             app_state.set(AppState::Running).unwrap();
         }
     }
@@ -104,7 +104,7 @@ pub fn setup_goals(
             .expect("No valid bone found");
 
         commands
-            .spawn_bundle(IkGoalBundle {
+            .spawn(IkGoalBundle {
                 transform: Transform::from_xyz(0.0, 6.0, 0.0),
                 global_transform: GlobalTransform::default(),
                 goal: IkGoal {
@@ -113,7 +113,7 @@ pub fn setup_goals(
                 },
             })
             .with_children(|parent| {
-                parent.spawn_bundle(PbrBundle {
+                parent.spawn(PbrBundle {
                     mesh: assets.goal_mesh_handle.clone(),
                     material: assets.goal_material_handle.clone(),
                     ..default()
@@ -129,7 +129,7 @@ pub fn rotate_goal(mut goals: Query<&mut Transform, With<IkGoal>>, time: Res<Tim
         let height = 1.2;
         let dir = ((i % 2) as f32 * 2.) - 1.; // either 1 or -1
         let speed = 0.001 * (i + 1) as f32;
-        let ms = time.time_since_startup().as_millis() as f32;
+        let ms = time.elapsed().as_millis() as f32;
         let t = ms * speed * dir;
         let x = rad * t.cos();
         let z = rad * t.sin();
