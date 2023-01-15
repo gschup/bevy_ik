@@ -10,7 +10,7 @@ Inverse kinematics plugin for [Bevy](https://bevyengine.org/) implementing the [
 
 |bevy|bevy_ik|
 |---|---|
-|0.7|main|
+|0.9|main|
 
 ## Licensing
 
