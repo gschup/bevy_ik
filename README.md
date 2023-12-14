@@ -4,7 +4,7 @@ Inverse kinematics plugin for [Bevy](https://bevyengine.org/) implementing the [
 
 ## Development Status
 
-🚧 WIP 🚧 Currently not 100% functional 🚧
+🚧 WIP 🚧 Currently not 100% functional 🚧 I haven't worked on this in a while. If you are looking at this code for whatever reason, [the bug is here](https://github.com/gschup/bevy_ik/blob/297233518681b2ef6a2f689aa432f00e017df91a/src/systems.rs#L346C22-L346C22)! 
 
 ## Compatible Versions
 
